@@ -1,0 +1,63 @@
+name: Habfitise
+options:
+  bundleIdPrefix: com.habfitise
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios
+    from: 5.0.0
+  # Firebase deferred — see Config/DEFERRED.md
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  Habfitise:
+    type: application
+    platform: iOS
+    sources:
+      - path: Habfitise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.habfitise.app
+        INFOPLIST_FILE: Habfitise/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_PREVIEWS: YES
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: RevenueCat
+        product: RevenueCat
+    entitlements:
+      path: Habfitise/Habfitise.entitlements
+      # Sign In with Apple + HealthKit require paid Apple Developer Program.
+      # Re-enable via Config/DEFERRED.md when enrolled.
+
+schemes:
+  Habfitise:
+    build:
+      targets:
+        Habfitise: all
+    run:
+      config: Debug
