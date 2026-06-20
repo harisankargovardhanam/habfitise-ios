@@ -42,9 +42,11 @@
 		435144B177AE94D97DCF4C93 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44554E9D85E0F57C472B877 /* PaywallView.swift */; };
 		4416BD1AA1761B043FF6CE18 /* WorkoutEnhancementComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22D28D920797F3D47139C181 /* WorkoutEnhancementComponents.swift */; };
 		4A1C51D2504AC0C8C3E87AEE /* SwiftDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F4691D4F60E977C0095638 /* SwiftDataStack.swift */; };
+		4B4381F166C16FEDE5427D6F /* BentoDashboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE444EDF96270AC7B99EFEF4 /* BentoDashboardTheme.swift */; };
 		4BB929DF73D62D9CBD6675DA /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FD403049F5B06A1C65E5FB /* RootView.swift */; };
 		50257930D744A787B1C5903F /* WorkoutBuilderComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB66C55651537AB439592F87 /* WorkoutBuilderComponents.swift */; };
 		546C68F7C1504858A4ABEED3 /* success.json in Resources */ = {isa = PBXBuildFile; fileRef = 6450DC923ADDF851187E5B5B /* success.json */; };
+		585C02B940C7621933833204 /* BentoDashboardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E845C5BA0C69FBC8E30FBE /* BentoDashboardComponents.swift */; };
 		58B3D5716D341DD06E0267D3 /* WaterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBCD5C9DC27270DB78C8F5F /* WaterView.swift */; };
 		5C3710799A4B274EB46A25DE /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD0AE68B5C7D1BAB59FB4F5 /* HealthKitService.swift */; };
 		68BD4A14096AA9BE990A5C36 /* WorkoutBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDEC7CE67F3CA336C6300773 /* WorkoutBuilderView.swift */; };
@@ -160,6 +162,7 @@
 		53E36149B8C52D2C255B0A1B /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		5579943472AD2DB847A72391 /* HabitsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitsModels.swift; sourceTree = "<group>"; };
 		55A41462776706E1E6B217D8 /* MissedWorkoutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissedWorkoutService.swift; sourceTree = "<group>"; };
+		58E845C5BA0C69FBC8E30FBE /* BentoDashboardComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BentoDashboardComponents.swift; sourceTree = "<group>"; };
 		5C11C5ACE5D2E2F3F2C6475E /* View+ConditionalModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+ConditionalModifier.swift"; sourceTree = "<group>"; };
 		635EDB5A8FCB64514E89BF64 /* TasksComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksComponents.swift; sourceTree = "<group>"; };
 		63B3503568E6402A0DCB0008 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
@@ -225,6 +228,7 @@
 		F3DF3444006F6B8CE5EBC86C /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		F93310E40E2CCB41BA31EE49 /* HabitsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitsView.swift; sourceTree = "<group>"; };
 		FA8FA168D88548DB488B6B29 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FE444EDF96270AC7B99EFEF4 /* BentoDashboardTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BentoDashboardTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -280,6 +284,7 @@
 			children = (
 				3337F3FC1763F0BE4DAB9196 /* AppAppearance.swift */,
 				884CBFBC0A0ACB9EC3030ED7 /* AppTheme.swift */,
+				FE444EDF96270AC7B99EFEF4 /* BentoDashboardTheme.swift */,
 				01B6E2B00156F5B8142593DB /* HabfitiseColors.swift */,
 				38CD58ACC8DF3D833FD07BB6 /* HabfitiseRadius.swift */,
 				070DBABE13AB7FE2332958B6 /* HabfitiseSpacing.swift */,
@@ -671,6 +676,7 @@
 		A28DE1B04870DADF89D1DAB3 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				58E845C5BA0C69FBC8E30FBE /* BentoDashboardComponents.swift */,
 				B471F83EF55D4AEA2435FA40 /* HomeComponents.swift */,
 				0C33D4F4D8063B0B4848A0B3 /* HomeView.swift */,
 			);
@@ -929,6 +935,8 @@
 				2F617F49C2F7787A9F4079E0 /* AuthModels.swift in Sources */,
 				D839007417669551635B27B7 /* AuthView.swift in Sources */,
 				C8F237DEB7E92B90D3216F23 /* AuthViewModel.swift in Sources */,
+				585C02B940C7621933833204 /* BentoDashboardComponents.swift in Sources */,
+				4B4381F166C16FEDE5427D6F /* BentoDashboardTheme.swift in Sources */,
 				8FDB26522BDEFFDCCB31D068 /* Color+Adaptive.swift in Sources */,
 				CCF9E16213C0AAC464E12237 /* Color+Hex.swift in Sources */,
 				C57161E8A94A2A911D798142 /* Date+Formatting.swift in Sources */,

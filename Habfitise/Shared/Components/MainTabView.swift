@@ -2,32 +2,29 @@ import SwiftUI
 
 struct LiquidGlassTabBar: View {
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(TabBarState.self) private var tabBarState
 
-    private let edgeInset: CGFloat = 16
+    private let edgeInset: CGFloat = 20
 
     var body: some View {
         HStack {
             Spacer(minLength: 0)
 
-            HStack(spacing: tabBarState.showsLabels ? 0 : HabfitiseSpacing.lg) {
+            HStack(spacing: 6) {
                 ForEach(MainTab.allCases) { tab in
                     tabItem(tab)
                 }
             }
-            .padding(.horizontal, tabBarState.showsLabels ? HabfitiseSpacing.lg : HabfitiseSpacing.md)
-            .padding(.vertical, HabfitiseSpacing.md)
-            .frame(maxWidth: tabBarState.pillMaxWidth)
-            .background { pillBackground }
-            .clipShape(RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous))
+            .padding(6)
+            .background { glassBackground }
+            .clipShape(Capsule())
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, edgeInset)
         .padding(.bottom, edgeInset)
+        .animation(HabfitiseAnimation.tabTransition, value: tabBarState.activeTab)
         .animation(HabfitiseAnimation.tabTransition, value: tabBarState.isVisible)
-        .animation(HabfitiseAnimation.interactive, value: tabBarState.activeTab)
     }
 
     @ViewBuilder
@@ -37,43 +34,43 @@ struct LiquidGlassTabBar: View {
         Button {
             tabBarState.selectTab(tab)
         } label: {
-            VStack(spacing: 4) {
+            HStack(spacing: 8) {
                 Image(systemName: tab.systemImage)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .habfitiseTabBounce(isActive: isActive)
 
-                if isActive, tabBarState.showsLabels {
+                if isActive {
                     Text(tab.title)
-                        .font(HabfitiseTypography.caption)
-                        .fontWeight(.semibold)
-                        .opacity(tabBarState.labelOpacity)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 }
             }
-            .foregroundStyle(
-                isActive
-                    ? theme.colors.accentGreen
-                    : theme.colors.textTertiary
-            )
-            .frame(maxWidth: tabBarState.showsLabels ? .infinity : nil)
-            .frame(minWidth: tabBarState.showsLabels ? nil : 44)
-            .contentShape(Rectangle())
+            .foregroundStyle(isActive ? BentoDashboardTheme.cobalt : Color.white.opacity(0.88))
+            .padding(.horizontal, isActive ? 16 : 14)
+            .padding(.vertical, 12)
+            .background {
+                if isActive {
+                    Capsule()
+                        .fill(Color.white)
+                        .shadow(color: BentoDashboardTheme.cobalt.opacity(0.2), radius: 10, y: 4)
+                }
+            }
         }
         .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.96))
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    private var pillBackground: some View {
-        RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous)
+    private var glassBackground: some View {
+        Capsule()
             .fill(.ultraThinMaterial)
             .overlay {
-                RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous)
-                    .fill(theme.colors.cardBackground.opacity(0.92))
+                Capsule()
+                    .fill(BentoDashboardTheme.cobalt.opacity(0.58))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous)
-                    .strokeBorder(theme.colors.cardBorder, lineWidth: 1)
+                Capsule()
+                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
             }
     }
 }

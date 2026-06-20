@@ -4,7 +4,7 @@ import SwiftUI
 
 enum TabBarLayout {
     /// Scroll content inset so the floating pill does not cover the last section.
-    static let floatingClearance: CGFloat = 108
+    static let floatingClearance: CGFloat = 120
 }
 
 enum MainTab: String, CaseIterable, Identifiable, Hashable {
