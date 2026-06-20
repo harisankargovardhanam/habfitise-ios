@@ -62,7 +62,7 @@ struct ProfileView: View {
             }
             .toolbarBackground(themeManager.colors.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(themeManager.preferredColorScheme, for: .navigationBar)
         }
         .preferredColorScheme(themeManager.preferredColorScheme)
         .onAppear {

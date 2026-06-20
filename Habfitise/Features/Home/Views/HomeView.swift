@@ -11,8 +11,9 @@ struct HomeView: View {
                 HomeContentView(userId: userId)
             } else {
                 ProgressView()
-                    .tint(themeManager.colors.textOnBackground)
-                    .habfitiseGreenBackground()
+                    .tint(themeManager.colors.accentGreen)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(themeManager.colors.background.ignoresSafeArea())
             }
         }
     }
@@ -45,8 +46,6 @@ struct HomeContentView: View {
     @Query private var pendingMissedWorkouts: [MissedWorkout]
     @Query private var profiles: [UserProfile]
     @Query private var waterGoals: [WaterGoal]
-
-    private let cardOverlap: CGFloat = HabfitiseRadius.xl
 
     init(userId: String) {
         self.userId = userId
@@ -113,116 +112,75 @@ struct HomeContentView: View {
     }
 
     var body: some View {
-        HomePhaseScrollLayout(
-            cardOverlap: cardOverlap,
-            fullHeaderHeight: 300,
-            maxHeaderCollapse: 118
-        ) {
-            greenHeader
-        } content: {
-            cardContent
-                .reportScrollOffsetToTabBar()
-        }
-        .background {
-            ZStack(alignment: .top) {
-                themeManager.colors.cardBackground
-                themeManager.colors.headerBackground
-                    .frame(height: 320)
-                    .ignoresSafeArea(edges: .top)
-            }
-            .ignoresSafeArea()
-        }
-        .habfitiseTabScreen(statusBarMatchesHeader: true)
-        .onAppear {
-            tabBarState.resetScrollState()
-            syncViewModel()
-        }
-        .onChange(of: habits.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: tasks.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: waterLogs.map(\.amountMl)) { _, _ in syncViewModel() }
-        .onChange(of: workoutTemplates.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: todaySessions.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
-            consumeNotificationBuilder()
-        }
-        .fullScreenCover(item: $builderRoute) { route in
-            WorkoutBuilderView(type: route.type, template: route.template)
-                .environment(appState)
-                .environment(syncService)
-                .environment(themeManager)
-        }
-        .sheet(item: $detailSessionRoute) { route in
-            NavigationStack {
-                SessionDetailView(session: route.session, showsDoneButton: true)
-                    .environment(themeManager)
-            }
-        }
-        .fullScreenCover(isPresented: $showHabits) {
-            HabitsContentView(userId: userId, showsBackButton: true)
-                .environment(appState)
-                .environment(tabBarState)
-        }
-        .fullScreenCover(isPresented: $showTasks) {
-            TasksContentView(userId: userId, showsBackButton: true)
-                .environment(appState)
-                .environment(tabBarState)
-        }
-        .sheet(isPresented: $showProfile) {
-            ProfileView(userId: userId)
-                .environment(appState)
-                .environment(themeManager)
-                .preferredColorScheme(themeManager.preferredColorScheme)
-        }
-        .sheet(isPresented: $showAddTask) {
-            AddTaskSheet(userId: userId, habits: habits) {
+        homeScrollView
+            .habfitiseTabScreen(immersiveHeader: true)
+            .onAppear {
+                tabBarState.resetScrollState()
                 syncViewModel()
             }
+            .onChange(of: habits.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: tasks.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in syncViewModel() }
+            .onChange(of: workoutTemplates.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: todaySessions.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
+                consumeNotificationBuilder()
+            }
+            .modifier(HomePresentationModifier(
+                userId: userId,
+                habits: habits,
+                builderRoute: $builderRoute,
+                detailSessionRoute: $detailSessionRoute,
+                showHabits: $showHabits,
+                showTasks: $showTasks,
+                showProfile: $showProfile,
+                showAddTask: $showAddTask,
+                onSync: syncViewModel
+            ))
+    }
+
+    private var homeScrollView: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: HabfitiseSpacing.lg) {
+                HomeSimpleHeader(
+                    greeting: viewModel.greeting,
+                    subtitle: viewModel.workoutTitle,
+                    memberSince: viewModel.memberSinceFormatted,
+                    profileDisplayName: profileDisplayName,
+                    viewModel: viewModel,
+                    userId: userId,
+                    onProfileTap: { showProfile = true }
+                )
+                .habfitiseStaggeredAppear(index: 0)
+
+                VStack(spacing: HabfitiseSpacing.md) {
+                    HabfitiseSectionCard { workoutSection }
+                        .habfitiseStaggeredAppear(index: 1)
+                    HabfitiseSectionCard { habitsSection }
+                        .habfitiseStaggeredAppear(index: 2)
+                    HabfitiseSectionCard { tasksSection }
+                        .habfitiseStaggeredAppear(index: 3)
+                    HabfitiseSectionCard { waterSection }
+                        .habfitiseStaggeredAppear(index: 4)
+                    HabfitiseSectionCard { streakSection }
+                        .habfitiseStaggeredAppear(index: 5)
+                }
+                .padding(.horizontal, HabfitiseSpacing.lg)
+            }
+            .padding(.bottom, TabBarLayout.floatingClearance)
+            .reportScrollOffsetToTabBar()
         }
+        .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
+        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .background(themeManager.colors.background.ignoresSafeArea())
     }
 
-    // MARK: - Green Header
-
-    private var greenHeader: some View {
-        HomeGreenHeader(
-            greeting: viewModel.greeting,
-            workoutTitle: viewModel.workoutTitle,
-            memberSince: viewModel.memberSinceFormatted,
-            profileDisplayName: profileDisplayName,
-            cardOverlap: cardOverlap,
-            viewModel: viewModel,
-            userId: userId,
-            onProfileTap: { showProfile = true }
-        )
-    }
-
-    // MARK: - Card Content
-
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-            workoutSection
-            habitsSection
-            tasksSection
-            waterSection
-            streakSection
-        }
-        .padding(HabfitiseSpacing.xxl)
-        .padding(.bottom, HabfitiseSpacing.xxxl)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(themeManager.colors.cardBackground)
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: HabfitiseRadius.xl,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: HabfitiseRadius.xl,
-                style: .continuous
-            )
-        )
-    }
+    // MARK: - Sections
 
     private var workoutSection: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            HabfitiseSectionLabel(text: "Today's Workout")
+            SectionHeaderRow(title: "Today's Workout")
 
             ForEach(pendingMissedBannerItems, id: \.missed.id) { item in
                 MissedWorkoutBanner(
@@ -325,15 +283,20 @@ struct HomeContentView: View {
                 showHabits = true
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: HabfitiseSpacing.sm) {
-                    ForEach(viewModel.habitItems) { item in
-                        HabitCompletionChip(item: item)
+            if viewModel.habitItems.isEmpty {
+                Text("No habits yet")
+                    .font(HabfitiseTypography.subheadline)
+                    .foregroundStyle(themeManager.colors.textSecondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: HabfitiseSpacing.sm) {
+                        ForEach(viewModel.habitItems) { item in
+                            HabitCompletionChip(item: item)
+                        }
                     }
                 }
             }
         }
-        .padding(.top, HabfitiseSpacing.lg)
     }
 
     private var tasksSection: some View {
@@ -364,7 +327,6 @@ struct HomeContentView: View {
                 }
             }
         }
-        .padding(.top, HabfitiseSpacing.lg)
     }
 
     private var waterSection: some View {
@@ -380,7 +342,6 @@ struct HomeContentView: View {
                 viewModel.logWaterDrop(userId: userId, context: modelContext)
             }
         }
-        .padding(.top, HabfitiseSpacing.lg)
     }
 
     private var streakSection: some View {
@@ -398,7 +359,6 @@ struct HomeContentView: View {
             .font(.system(size: 13, weight: .medium, design: .rounded))
             .foregroundStyle(themeManager.colors.textSecondary)
         }
-        .padding(.top, HabfitiseSpacing.lg)
     }
 
     // MARK: - Helpers
@@ -483,6 +443,58 @@ struct HomeContentView: View {
 private struct HomeSessionRoute: Identifiable {
     let session: WorkoutSession
     var id: UUID { session.id }
+}
+
+private struct HomePresentationModifier: ViewModifier {
+    @Environment(AppState.self) private var appState
+    @Environment(SyncService.self) private var syncService
+    @Environment(ThemeManager.self) private var themeManager
+    @Environment(TabBarState.self) private var tabBarState
+
+    let userId: String
+    let habits: [Habit]
+    @Binding var builderRoute: WorkoutBuilderRoute?
+    @Binding var detailSessionRoute: HomeSessionRoute?
+    @Binding var showHabits: Bool
+    @Binding var showTasks: Bool
+    @Binding var showProfile: Bool
+    @Binding var showAddTask: Bool
+    let onSync: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .fullScreenCover(item: $builderRoute) { route in
+                WorkoutBuilderView(type: route.type, template: route.template)
+                    .environment(appState)
+                    .environment(syncService)
+                    .environment(themeManager)
+            }
+            .sheet(item: $detailSessionRoute) { route in
+                NavigationStack {
+                    SessionDetailView(session: route.session, showsDoneButton: true)
+                        .environment(themeManager)
+                }
+            }
+            .fullScreenCover(isPresented: $showHabits) {
+                HabitsContentView(userId: userId, showsBackButton: true)
+                    .environment(appState)
+                    .environment(tabBarState)
+            }
+            .fullScreenCover(isPresented: $showTasks) {
+                TasksContentView(userId: userId, showsBackButton: true)
+                    .environment(appState)
+                    .environment(tabBarState)
+            }
+            .sheet(isPresented: $showProfile) {
+                ProfileView(userId: userId)
+                    .environment(appState)
+                    .environment(themeManager)
+                    .preferredColorScheme(themeManager.preferredColorScheme)
+            }
+            .sheet(isPresented: $showAddTask) {
+                AddTaskSheet(userId: userId, habits: habits, onSave: onSync)
+            }
+    }
 }
 
 #if DEBUG

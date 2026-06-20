@@ -67,6 +67,78 @@ struct HabfitiseScreenBackground: ViewModifier {
     }
 }
 
+// MARK: - Tab page layout
+
+/// Bordered card for tab screen sections.
+struct HabfitiseSectionCard<Content: View>: View {
+    @Environment(ThemeManager.self) private var theme
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+            content()
+        }
+        .padding(HabfitiseSpacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: HabfitiseRadius.lg, style: .continuous)
+                .fill(theme.colors.cardBackground)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: HabfitiseRadius.lg, style: .continuous)
+                .strokeBorder(theme.colors.cardBorder, lineWidth: 1)
+        }
+    }
+}
+
+/// Page title row for tab screens — sits on the standard background.
+struct HabfitiseTabPageHeader<Trailing: View>: View {
+    @Environment(ThemeManager.self) private var theme
+    @Environment(\.dismiss) private var dismiss
+
+    let title: String
+    var showsBackButton: Bool
+    @ViewBuilder let trailing: () -> Trailing
+
+    init(
+        title: String,
+        showsBackButton: Bool = false,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.showsBackButton = showsBackButton
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+            HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
+                if showsBackButton {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(theme.colors.textPrimary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(title)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.colors.textPrimary)
+
+                Spacer(minLength: 8)
+
+                trailing()
+            }
+        }
+        .padding(.horizontal, HabfitiseSpacing.lg)
+        .safeAreaPadding(.top, HabfitiseSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - Primary Button
 
 struct HabfitisePrimaryButtonStyle: ButtonStyle {

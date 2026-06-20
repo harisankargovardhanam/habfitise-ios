@@ -40,6 +40,7 @@ struct LiquidGlassTabBar: View {
             VStack(spacing: 4) {
                 Image(systemName: tab.systemImage)
                     .font(.system(size: 18, weight: .semibold))
+                    .habfitiseTabBounce(isActive: isActive)
 
                 if isActive, tabBarState.showsLabels {
                     Text(tab.title)
@@ -68,7 +69,7 @@ struct LiquidGlassTabBar: View {
             .fill(.ultraThinMaterial)
             .overlay {
                 RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous)
-                    .fill(theme.colors.navBarBackground)
+                    .fill(theme.colors.cardBackground.opacity(0.92))
             }
             .overlay {
                 RoundedRectangle(cornerRadius: HabfitiseRadius.full, style: .continuous)
@@ -91,7 +92,7 @@ struct MainTabView: View {
     var body: some View {
         tabShell
             .environment(tabBarState)
-            .background(theme.colors.cardBackground.ignoresSafeArea())
+            .background(theme.colors.background.ignoresSafeArea())
             .onAppear {
                 runMissedWorkoutDetection()
                 guard !AppConstants.Backend.useLocalOnly else { return }
@@ -166,16 +167,19 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(
-                .asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .leading)
-                )
-            )
+            .transition(tabTransition)
             .id(tabBarState.activeTab)
 
             LiquidGlassTabBar()
         }
+        .animation(HabfitiseAnimation.tabTransition, value: tabBarState.activeTab)
+    }
+
+    private var tabTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: tabBarState.tabTransitionForward ? .trailing : .leading),
+            removal: .move(edge: tabBarState.tabTransitionForward ? .leading : .trailing)
+        )
     }
 }
 

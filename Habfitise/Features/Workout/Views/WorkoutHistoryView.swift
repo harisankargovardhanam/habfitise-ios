@@ -97,9 +97,10 @@ struct WorkoutHistoryView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
-        .background(sheetBackground.ignoresSafeArea())
+        .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .habfitiseNavigationBar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

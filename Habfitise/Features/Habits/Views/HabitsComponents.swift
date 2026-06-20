@@ -475,12 +475,12 @@ struct HabitsAddButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.5)
+                    .strokeBorder(theme.colors.cardBorder, lineWidth: 1.5)
                     .frame(width: 34, height: 34)
 
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(theme.colors.accentGreen)
             }
         }
         .buttonStyle(.plain)

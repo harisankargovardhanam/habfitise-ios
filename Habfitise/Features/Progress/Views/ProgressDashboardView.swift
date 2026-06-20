@@ -78,12 +78,10 @@ struct ProgressContentView: View {
 
     private var profile: UserProfile? { profiles.first }
 
-    private let cardOverlap: CGFloat = HabfitiseRadius.xl
-
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: -cardOverlap) {
-                progressHeader
+            VStack(spacing: HabfitiseSpacing.lg) {
+                HabfitiseTabPageHeader(title: "Progress")
 
                 VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     if viewModel.workoutCount == 0 && sets.isEmpty {
@@ -96,43 +94,21 @@ struct ProgressContentView: View {
                         progressSections
                     }
                 }
-                .padding(.horizontal, HabfitiseSpacing.xxl)
-                .padding(.top, HabfitiseSpacing.xxl)
-                .padding(.bottom, 120)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.colors.cardBackground)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: HabfitiseRadius.xl,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: HabfitiseRadius.xl,
-                        style: .continuous
-                    )
-                )
+                .padding(.horizontal, HabfitiseSpacing.lg)
             }
+            .padding(.bottom, TabBarLayout.floatingClearance)
             .reportScrollOffsetToTabBar()
         }
         .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background(theme.colors.cardBackground.ignoresSafeArea())
-        .habfitiseTabScreen()
+        .background(theme.colors.background.ignoresSafeArea())
+        .habfitiseTabScreen(immersiveHeader: true)
         .onAppear(perform: syncViewModel)
         .onChange(of: sessions.count) { _, _ in syncViewModel() }
         .onChange(of: sets.count) { _, _ in syncViewModel() }
         .onChange(of: completions.count) { _, _ in syncViewModel() }
         .onChange(of: waterLogs.count) { _, _ in syncViewModel() }
-    }
-
-    private var progressHeader: some View {
-        Text("Progress")
-            .font(.system(size: 28, weight: .bold))
-            .foregroundStyle(theme.colors.textOnBackground)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, HabfitiseSpacing.xxl)
-            .padding(.top, HabfitiseSpacing.xxl)
-            .padding(.bottom, HabfitiseSpacing.xxl + cardOverlap)
-            .background(theme.colors.headerBackground)
     }
 
     private var progressSections: some View {

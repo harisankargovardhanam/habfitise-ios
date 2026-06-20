@@ -43,6 +43,7 @@ struct HabfitiseEmptyState: View {
             Image(systemName: icon)
                 .font(.system(size: 48))
                 .foregroundStyle(theme.colors.accentGreen.opacity(0.4))
+                .habfitiseFloating(amplitude: 8)
 
             Text(title)
                 .font(.system(size: 18, weight: .semibold))
@@ -66,18 +67,11 @@ struct SkeletonRow: View {
     var height: CGFloat = 16
     var cornerRadius: CGFloat = 8
 
-    @State private var pulse = false
-
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(theme.colors.cardBackground)
+            .fill(theme.colors.trackBackground)
             .frame(height: height)
-            .opacity(pulse ? 1 : 0.5)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
+            .habfitiseShimmer()
     }
 }
 

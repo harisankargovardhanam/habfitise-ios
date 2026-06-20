@@ -29,7 +29,7 @@ final class SwiftDataStack {
                 for: HabfitiseSwiftDataSchema.schema,
                 configurations: [configuration]
             )
-        }
+        } 
 
         let storeURL = persistentStoreURL()
         do {

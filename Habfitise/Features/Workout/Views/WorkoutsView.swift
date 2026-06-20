@@ -14,16 +14,11 @@ struct WorkoutsView: View {
     var body: some View {
         Group {
             if let userId = appState.authenticatedUserId {
-                NavigationStack {
-                    WorkoutsContentView(
-                        userId: userId,
-                        showHistory: $showHistory,
-                        onOpenBuilder: openBuilder
-                    )
-                    .navigationDestination(isPresented: $showHistory) {
-                        WorkoutHistoryView(userId: userId)
-                    }
-                }
+                WorkoutsContentView(
+                    userId: userId,
+                    showHistory: $showHistory,
+                    onOpenBuilder: openBuilder
+                )
             } else {
                 ProgressView()
                     .tint(theme.colors.accentGreen)
@@ -63,8 +58,6 @@ private struct WorkoutsContentView: View {
     @Query private var recentSessions: [WorkoutSession]
     @Query private var missedWorkouts: [MissedWorkout]
     @Query private var exerciseSets: [ExerciseSet]
-
-    private let cardOverlap: CGFloat = HabfitiseRadius.xl
 
     init(
         userId: String,
@@ -111,10 +104,20 @@ private struct WorkoutsContentView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: -cardOverlap) {
-                workoutsHeader
+            VStack(spacing: HabfitiseSpacing.lg) {
+                HabfitiseTabPageHeader(title: "Workouts") {
+                    Button {
+                        showHistory = true
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(theme.colors.textPrimary)
+                            .frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
+                }
 
-                VStack(alignment: .leading, spacing: HabfitiseSpacing.xxl) {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     if !pendingMissedItems.isEmpty {
                         missedWorkoutsSection
                     }
@@ -138,35 +141,19 @@ private struct WorkoutsContentView: View {
                     }
                     recentSessionsSection
                 }
-                .padding(.horizontal, HabfitiseSpacing.xxl)
-                .padding(.top, HabfitiseSpacing.xxl)
-                .padding(.bottom, 120)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.colors.cardBackground)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: HabfitiseRadius.xl,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: HabfitiseRadius.xl,
-                        style: .continuous
-                    )
-                )
+                .padding(.horizontal, HabfitiseSpacing.lg)
             }
+            .padding(.bottom, TabBarLayout.floatingClearance)
             .reportScrollOffsetToTabBar()
         }
         .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background {
-            ZStack(alignment: .top) {
-                theme.colors.cardBackground
-                theme.colors.headerBackground
-                    .frame(height: 220)
-                    .ignoresSafeArea(edges: .top)
-            }
-            .ignoresSafeArea()
+        .background(theme.colors.background.ignoresSafeArea())
+        .navigationDestination(isPresented: $showHistory) {
+            WorkoutHistoryView(userId: userId)
         }
-        .habfitiseTabScreen(statusBarMatchesHeader: true)
+        .habfitiseTabScreen(immersiveHeader: true)
         .sheet(item: $selectedSession) { session in
             NavigationStack {
                 SessionDetailView(session: session, showsDoneButton: true)
@@ -200,31 +187,6 @@ private struct WorkoutsContentView: View {
         modelContext.insert(template)
         try? modelContext.save()
         showAISuggestion = false
-    }
-
-    private var workoutsHeader: some View {
-        HStack(alignment: .center) {
-            Text("Workouts")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(theme.colors.textOnBackground)
-
-            Spacer()
-
-            Button {
-                showHistory = true
-            } label: {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(theme.colors.textOnBackground)
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, HabfitiseSpacing.xxl)
-        .padding(.top, HabfitiseSpacing.xxl)
-        .padding(.bottom, HabfitiseSpacing.xxl + cardOverlap)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.colors.headerBackground)
     }
 
     // MARK: - Sections

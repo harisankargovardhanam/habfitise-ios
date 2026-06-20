@@ -28,8 +28,6 @@ struct DashedLine: View {
     }
 }
 
-// MARK: - Section Header
-
 struct SectionHeaderRow: View {
     @Environment(ThemeManager.self) private var theme
     let title: String
@@ -66,44 +64,50 @@ struct MoodSelectorView: View {
     @Environment(\.modelContext) private var modelContext
 
     private let labels = ["Drained", "Low", "Okay", "Good", "Energised"]
+    private let buttonSize: CGFloat = 38
 
     var body: some View {
-        VStack(spacing: HabfitiseSpacing.sm) {
-            HStack(spacing: HabfitiseSpacing.sm) {
-                ForEach(0..<5, id: \.self) { index in
+        HStack(alignment: .top, spacing: HabfitiseSpacing.sm) {
+            ForEach(0..<5, id: \.self) { index in
+                VStack(spacing: HabfitiseSpacing.sm) {
                     Button {
                         viewModel.selectMood(index, userId: userId, context: modelContext)
                     } label: {
-                        Text("\(index + 1)")
+                        ZStack {
+                            HabfitisePulseRing(isActive: viewModel.selectedMood == index)
+                                .frame(width: buttonSize + 10, height: buttonSize + 10)
+
+                            Text("\(index + 1)")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(
                                 viewModel.selectedMood == index
                                     ? Color.white
-                                    : Color.white.opacity(0.85)
+                                    : theme.colors.textPrimary
                             )
-                            .frame(width: 38, height: 38)
+                            .frame(width: buttonSize, height: buttonSize)
                             .background(
                                 Circle()
                                     .fill(
                                         viewModel.selectedMood == index
                                             ? theme.colors.accentGreen
-                                            : theme.colors.streakRing
+                                            : theme.colors.trackBackground
                                     )
                             )
                             .scaleEffect(viewModel.selectedMood == index ? 1.05 : 1)
+                        }
                     }
                     .buttonStyle(.plain)
-                }
-            }
 
-            HStack(spacing: 0) {
-                ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
-                    Text(label)
+                    Text(labels[index])
                         .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(theme.colors.textMutedOnBackground)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
                         .opacity(index == viewModel.selectedMood ? 1 : 0.75)
                 }
+                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -241,12 +245,7 @@ private struct WaterDropButton: View {
     let onTap: () -> Void
 
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @State private var scale: CGFloat = 1
-
-    private var emptyDropColor: Color {
-        theme.colors.trackBackground
-    }
 
     var body: some View {
         Button {
@@ -255,7 +254,7 @@ private struct WaterDropButton: View {
         } label: {
             Image(systemName: "drop.fill")
                 .font(.system(size: 28))
-                .foregroundStyle(isFilled ? theme.colors.waterBlue : emptyDropColor)
+                .foregroundStyle(isFilled ? theme.colors.waterBlue : theme.colors.trackBackground)
                 .frame(width: 28, height: 28)
                 .scaleEffect(scale)
         }
@@ -373,48 +372,7 @@ struct HomeAvatarView: View {
     }
 }
 
-// MARK: - Header chrome
-
-struct HomeHeaderBackground: View {
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        ZStack {
-            theme.colors.headerBackground
-
-            RadialGradient(
-                colors: [
-                    theme.colors.accentGreen.opacity(0.22),
-                    theme.colors.headerBackground.opacity(0.05),
-                    .clear
-                ],
-                center: .topTrailing,
-                startRadius: 20,
-                endRadius: 280
-            )
-
-            Circle()
-                .stroke(theme.colors.textOnBackground.opacity(0.07), lineWidth: 1.5)
-                .frame(width: 220, height: 220)
-                .offset(x: 90, y: -30)
-
-            Circle()
-                .stroke(theme.colors.textOnBackground.opacity(0.05), lineWidth: 1)
-                .frame(width: 300, height: 300)
-                .offset(x: 110, y: -50)
-
-            Circle()
-                .fill(theme.colors.accentGreen.opacity(0.08))
-                .frame(width: 120, height: 120)
-                .blur(radius: 2)
-                .offset(x: -40, y: 60)
-
-            HabfitiseWatermark()
-                .offset(x: 48, y: -8)
-        }
-        .clipShape(HomeHeaderBottomCurve())
-    }
-}
+// MARK: - Home layout
 
 struct HomeStatPill: View {
     @Environment(ThemeManager.self) private var theme
@@ -425,10 +383,10 @@ struct HomeStatPill: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(HabfitiseTypography.caption)
-                .foregroundStyle(theme.colors.textMutedOnBackground)
+                .foregroundStyle(theme.colors.textSecondary)
             Text(value)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(theme.colors.textOnBackground)
+                .foregroundStyle(theme.colors.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -436,291 +394,79 @@ struct HomeStatPill: View {
         .padding(.vertical, HabfitiseSpacing.sm)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(theme.colors.textOnBackground.opacity(0.1))
+                .fill(theme.colors.fieldBackground)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(theme.colors.textOnBackground.opacity(0.12), lineWidth: 1)
+                .strokeBorder(theme.colors.cardBorder, lineWidth: 1)
         }
     }
 }
 
-struct HomeGreenHeader: View {
-    @Environment(ThemeManager.self) private var themeManager
-    @Environment(\.homeBodyScrollOffset) private var bodyScrollOffset
+/// Scrolls with content — no overlays, no fixed heights.
+struct HomeSimpleHeader: View {
+    @Environment(ThemeManager.self) private var theme
 
     let greeting: String
-    let workoutTitle: String
+    let subtitle: String
     let memberSince: String
     let profileDisplayName: String?
-    let cardOverlap: CGFloat
     @Bindable var viewModel: HomeViewModel
     let userId: String
     let onProfileTap: () -> Void
 
-    private var energyHideProgress: CGFloat {
-        min(1, max(0, bodyScrollOffset / 76))
+    private var todayLabel: String {
+        Date.now.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            HomeHeaderBackground()
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
+            HStack(alignment: .top, spacing: HabfitiseSpacing.md) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(greeting)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(theme.colors.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
 
-            VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-                headerTopRow
-                statsRow
-                dashedLineSection
-                energySection
-            }
-            .padding(.horizontal, HabfitiseSpacing.lg)
-            .padding(.top, HabfitiseSpacing.sm)
-            .padding(.bottom, HabfitiseSpacing.xxl + cardOverlap)
-            .safeAreaPadding(.top, HabfitiseSpacing.sm)
-        }
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    private var headerTopRow: some View {
-        HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(greeting)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(themeManager.colors.textOnBackground)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-
-                Text(workoutTitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(themeManager.colors.textMutedOnBackground)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: HabfitiseSpacing.sm)
-
-            Button(action: onProfileTap) {
-                HomeAvatarView(displayName: profileDisplayName)
-            }
-            .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.94))
-            .accessibilityLabel("Open profile")
-        }
-    }
-
-    private var statsRow: some View {
-        HStack(spacing: HabfitiseSpacing.sm) {
-            HomeStatPill(title: "Since", value: memberSince)
-            HomeStatPill(title: "Today", value: workoutTitle)
-
-            if energyHideProgress > 0.4 {
-                compactEnergyBadge
-                    .transition(.scale(scale: 0.7).combined(with: .opacity))
-            }
-
-            Button {} label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(themeManager.colors.textOnBackground.opacity(0.85))
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(themeManager.colors.textOnBackground.opacity(0.1))
-                    )
-            }
-            .buttonStyle(.plain)
-        }
-        .animation(.spring(response: 0.34, dampingFraction: 0.82), value: energyHideProgress > 0.4)
-    }
-
-    private var compactEnergyBadge: some View {
-        HStack(spacing: 6) {
-            Text("⚡")
-                .font(.system(size: 12))
-            Text("\(viewModel.selectedMood + 1)")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(themeManager.colors.textOnBackground)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(
-            Capsule()
-                .fill(themeManager.colors.accentGreen.opacity(0.9))
-        )
-        .opacity(Double(min(1, (energyHideProgress - 0.4) / 0.45)))
-        .scaleEffect(0.88 + min(1, (energyHideProgress - 0.4) / 0.45) * 0.12)
-    }
-
-    private var dashedLineSection: some View {
-        DashedLine()
-            .opacity(Double(1 - energyHideProgress * 0.9))
-            .scaleEffect(x: 1, y: 1 - energyHideProgress * 0.5, anchor: .center)
-    }
-
-    private var energySection: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            Text("How's your energy?")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(themeManager.colors.textMutedOnBackground)
-                .textCase(.uppercase)
-                .tracking(0.6)
-
-            MoodSelectorView(viewModel: viewModel, userId: userId)
-        }
-        .opacity(Double(1 - energyHideProgress))
-        .blur(radius: energyHideProgress * 6)
-        .scaleEffect(
-            x: 1 - energyHideProgress * 0.06,
-            y: 1 - energyHideProgress * 0.62,
-            anchor: .bottom
-        )
-        .offset(y: -energyHideProgress * 34)
-        .mask {
-            VStack(spacing: 0) {
-                Rectangle()
-                LinearGradient(
-                    colors: [.black, .black, .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 28 * energyHideProgress)
-            }
-        }
-        .allowsHitTesting(energyHideProgress < 0.35)
-        .animation(.interactiveSpring(response: 0.38, dampingFraction: 0.86), value: energyHideProgress)
-    }
-}
-
-struct HomeHeaderBottomCurve: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: .zero)
-        path.addLine(to: CGPoint(x: rect.maxX, y: 0))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - 28))
-        path.addQuadCurve(
-            to: CGPoint(x: 0, y: rect.maxY - 28),
-            control: CGPoint(x: rect.midX, y: rect.maxY + 18)
-        )
-        path.closeSubpath()
-        return path
-    }
-}
-
-// MARK: - Phase scroll
-
-private struct HomeBodyScrollOffsetEnvironmentKey: EnvironmentKey {
-    static let defaultValue: CGFloat = 0
-}
-
-extension EnvironmentValues {
-    var homeBodyScrollOffset: CGFloat {
-        get { self[HomeBodyScrollOffsetEnvironmentKey.self] }
-        set { self[HomeBodyScrollOffsetEnvironmentKey.self] = newValue }
-    }
-}
-
-private struct HomeBodyScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private struct HomeBodyContentHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-struct HomePhaseScrollLayout<Header: View, Content: View>: View {
-    let cardOverlap: CGFloat
-    let fullHeaderHeight: CGFloat
-    let maxHeaderCollapse: CGFloat
-    @ViewBuilder let header: () -> Header
-    @ViewBuilder let content: () -> Content
-
-    @State private var headerCollapse: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
-    @State private var contentHeight: CGFloat = 0
-    @State private var viewportHeight: CGFloat = 0
-
-    var body: some View {
-        GeometryReader { outer in
-            let currentHeaderHeight = max(fullHeaderHeight * 0.55, fullHeaderHeight - headerCollapse)
-            let bodyHeight = outer.size.height - currentHeaderHeight + cardOverlap
-
-            VStack(spacing: -cardOverlap) {
-                header()
-                    .frame(height: currentHeaderHeight)
-                    .clipped()
-                    .animation(.interactiveSpring(response: 0.38, dampingFraction: 0.86), value: headerCollapse)
-
-                bodyScrollView(height: bodyHeight)
-            }
-        }
-        .environment(\.homeBodyScrollOffset, scrollOffset)
-        .onPreferenceChange(HomeBodyScrollOffsetKey.self) { scrollOffset = $0 }
-        .onPreferenceChange(HomeBodyContentHeightKey.self) { contentHeight = $0 }
-        .onChange(of: scrollOffset) { _, offset in
-            updateHeaderCollapse(scrollOffset: offset)
-        }
-        .onChange(of: contentHeight) { _, _ in
-            updateHeaderCollapse(scrollOffset: scrollOffset)
-        }
-        .onChange(of: viewportHeight) { _, _ in
-            updateHeaderCollapse(scrollOffset: scrollOffset)
-        }
-    }
-
-    private func bodyScrollView(height: CGFloat) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                content()
-                Color.clear
-                    .frame(height: maxHeaderCollapse + cardOverlap)
-            }
-            .padding(.bottom, 120)
-            .background {
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(key: HomeBodyContentHeightKey.self, value: proxy.size.height)
+                    Text(subtitle)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .lineLimit(1)
                 }
-            }
-            .background(alignment: .top) {
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(
-                            key: HomeBodyScrollOffsetKey.self,
-                            value: -proxy.frame(in: .named(HabfitiseScrollCoordinateSpace.name)).minY
-                        )
+
+                Spacer(minLength: 8)
+
+                Button(action: onProfileTap) {
+                    HomeAvatarView(displayName: profileDisplayName)
                 }
-                .frame(height: 0)
+                .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.94))
+                .accessibilityLabel("Open profile")
+            }
+
+            HStack(spacing: HabfitiseSpacing.sm) {
+                HomeStatPill(title: "Since", value: memberSince)
+                HomeStatPill(title: "Today", value: todayLabel)
+                Spacer(minLength: 0)
+            }
+
+            Rectangle()
+                .fill(theme.colors.cardBorder)
+                .frame(height: 1)
+
+            VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+                Text("How's your energy?")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+
+                MoodSelectorView(viewModel: viewModel, userId: userId)
             }
         }
-        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .frame(height: max(0, height))
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { viewportHeight = proxy.size.height }
-                    .onChange(of: proxy.size.height) { _, h in viewportHeight = h }
-            }
-        }
-    }
-
-    private func updateHeaderCollapse(scrollOffset: CGFloat) {
-        guard viewportHeight > 0, contentHeight > 0 else { return }
-
-        let runway = maxHeaderCollapse + cardOverlap
-        let bodyOnlyMax = max(0, contentHeight - viewportHeight - runway)
-
-        if scrollOffset <= bodyOnlyMax {
-            if headerCollapse != 0 {
-                headerCollapse = 0
-            }
-        } else {
-            let next = min(maxHeaderCollapse, scrollOffset - bodyOnlyMax)
-            if abs(next - headerCollapse) > 0.5 {
-                headerCollapse = next
-            }
-        }
+        .padding(.horizontal, HabfitiseSpacing.lg)
+        .safeAreaPadding(.top, HabfitiseSpacing.sm)
+        .padding(.bottom, HabfitiseSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

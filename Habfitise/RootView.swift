@@ -35,15 +35,9 @@ struct RootView: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: HabfitiseSpacing.lg) {
-            ProgressView()
-                .tint(themeManager.colors.textOnBackground)
-            Text("Loading...")
-                .font(HabfitiseTypography.callout)
-                .foregroundStyle(themeManager.colors.textMutedOnBackground)
-        }
-        .habfitiseGreenBackground()
-        .habfitiseWatermark()
+        HabfitiseBreathingLoader()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(themeManager.colors.background.ignoresSafeArea())
     }
 
     private var upgradeBinding: Binding<UpgradeTrigger?> {

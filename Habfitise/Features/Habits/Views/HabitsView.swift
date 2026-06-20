@@ -26,7 +26,6 @@ struct HabitsContentView: View {
     var showsBackButton = false
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
     @Environment(TabBarState.self) private var tabBarState
     @State private var viewModel = HabitsViewModel()
 
@@ -79,12 +78,10 @@ struct HabitsContentView: View {
         )
     }
 
-    private let cardOverlap: CGFloat = HabfitiseRadius.xl
-
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: -cardOverlap) {
-                greenHeader
+            VStack(spacing: HabfitiseSpacing.lg) {
+                habitsHeader
 
                 LazyVStack(spacing: 12) {
                     if !viewModel.hasLoadedHabits {
@@ -150,26 +147,15 @@ struct HabitsContentView: View {
                     }
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
-                .padding(.top, HabfitiseSpacing.lg)
-                .padding(.bottom, 120)
-                .frame(maxWidth: .infinity)
-                .background(theme.colors.cardBackground)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: HabfitiseRadius.xl,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: HabfitiseRadius.xl,
-                        style: .continuous
-                    )
-                )
             }
+            .padding(.bottom, TabBarLayout.floatingClearance)
             .reportScrollOffsetToTabBar()
         }
         .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background(theme.colors.cardBackground.ignoresSafeArea())
-        .habfitiseTabScreen()
+        .background(theme.colors.background.ignoresSafeArea())
+        .habfitiseTabScreen(immersiveHeader: showsBackButton ? false : true)
         .onAppear {
             tabBarState.resetScrollState()
             syncViewModel()
@@ -189,44 +175,24 @@ struct HabitsContentView: View {
 
     // MARK: - Header
 
-    private var greenHeader: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
-                if showsBackButton {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(theme.colors.textOnBackground)
-                    }
-                }
-
-                Text("Habits")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(theme.colors.textOnBackground)
-
-                Spacer()
-
+    private var habitsHeader: some View {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+            HabfitiseTabPageHeader(title: "Habits", showsBackButton: showsBackButton) {
                 HabitsAddButton {
                     viewModel.showAddHabit = true
                 }
             }
 
             summaryRow
+                .padding(.horizontal, HabfitiseSpacing.lg)
         }
-        .padding(.horizontal, HabfitiseSpacing.lg)
-        .padding(.top, HabfitiseSpacing.sm)
-        .padding(.bottom, HabfitiseSpacing.xxl + cardOverlap)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.colors.headerBackground)
     }
 
     private var summaryRow: some View {
         HStack {
             Text("\(viewModel.activeHabitCount(from: habits)) active habits")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(theme.colors.textMutedOnBackground)
+                .foregroundStyle(theme.colors.textSecondary)
 
             Spacer()
 
@@ -234,7 +200,7 @@ struct HabitsContentView: View {
                 Text("🔥")
                 Text("\(viewModel.aggregateStreak(from: habits)) day streak")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.colors.textOnBackground)
+                    .foregroundStyle(theme.colors.textPrimary)
             }
         }
     }

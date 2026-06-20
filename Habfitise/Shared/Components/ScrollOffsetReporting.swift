@@ -31,8 +31,21 @@ extension View {
     }
 
     /// Standard tab screen chrome: optional nav title + trailing sync dot.
-    func habfitiseTabScreen(title: String? = nil, statusBarMatchesHeader: Bool = false) -> some View {
-        modifier(HabfitiseTabScreenModifier(title: title, statusBarMatchesHeader: statusBarMatchesHeader))
+    func habfitiseTabScreen(
+        title: String? = nil,
+        immersiveHeader: Bool = false
+    ) -> some View {
+        modifier(
+            HabfitiseTabScreenModifier(
+                title: title,
+                immersiveHeader: immersiveHeader
+            )
+        )
+    }
+
+    /// Matches navigation bar to the current theme background (use on pushed screens).
+    func habfitiseNavigationBar() -> some View {
+        modifier(HabfitiseNavigationBarModifier())
     }
 }
 
@@ -52,7 +65,7 @@ private struct HabfitiseTabScreenModifier: ViewModifier {
     @Environment(ThemeManager.self) private var theme
     @Environment(TabBarState.self) private var tabBarState
     let title: String?
-    let statusBarMatchesHeader: Bool
+    let immersiveHeader: Bool
 
     func body(content: Content) -> some View {
         NavigationStack {
@@ -66,13 +79,23 @@ private struct HabfitiseTabScreenModifier: ViewModifier {
                         }
                     }
                 }
-                .toolbarBackground(statusBarMatchesHeader ? theme.colors.headerBackground : .clear, for: .navigationBar)
-                .toolbarBackground(statusBarMatchesHeader ? .visible : .hidden, for: .navigationBar)
-                .toolbarColorScheme(statusBarMatchesHeader ? .dark : nil, for: .navigationBar)
+                .toolbar(immersiveHeader ? .hidden : .visible, for: .navigationBar)
+                .habfitiseNavigationBar()
         }
         .onAppear {
             tabBarState.resetScrollState()
         }
+    }
+}
+
+private struct HabfitiseNavigationBarModifier: ViewModifier {
+    @Environment(ThemeManager.self) private var theme
+
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(theme.colors.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(theme.preferredColorScheme, for: .navigationBar)
     }
 }
 
@@ -89,7 +112,7 @@ struct HabfitiseTabScrollContainer<Content: View>: View {
         }
         .scrollIndicators(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background(theme.colors.cardBackground.ignoresSafeArea())
+        .background(theme.colors.background.ignoresSafeArea())
     }
 }
 

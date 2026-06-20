@@ -188,6 +188,7 @@ struct TaskDueChip: View {
 // MARK: - Header Chips
 
 struct TasksHeaderChipRow: View {
+    @Environment(ThemeManager.self) private var theme
     let todayCount: Int
     let upcomingCount: Int
 
@@ -201,10 +202,17 @@ struct TasksHeaderChipRow: View {
     private func headerChip(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(Color.white)
+            .foregroundStyle(theme.colors.textPrimary)
             .padding(.horizontal, HabfitiseSpacing.md)
             .padding(.vertical, HabfitiseSpacing.sm)
-            .background(Capsule().fill(Color.white.opacity(0.2)))
+            .background(
+                Capsule()
+                    .fill(theme.colors.fieldBackground)
+            )
+            .overlay {
+                Capsule()
+                    .strokeBorder(theme.colors.cardBorder, lineWidth: 1)
+            }
     }
 }
 

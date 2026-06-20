@@ -2,6 +2,11 @@ import Foundation
 import Observation
 import SwiftUI
 
+enum TabBarLayout {
+    /// Scroll content inset so the floating pill does not cover the last section.
+    static let floatingClearance: CGFloat = 108
+}
+
 enum MainTab: String, CaseIterable, Identifiable, Hashable {
     case home
     case workout
@@ -32,6 +37,7 @@ final class TabBarState {
     var activeTab: MainTab = .home
     var isVisible = true
     var scrollOffset: CGFloat = 0
+    var tabTransitionForward = true
 
     private var lastScrollOffset: CGFloat = 0
     private var scrollStopTask: Task<Void, Never>?
@@ -51,6 +57,9 @@ final class TabBarState {
 
     func selectTab(_ tab: MainTab) {
         guard activeTab != tab else { return }
+        let currentIndex = MainTab.allCases.firstIndex(of: activeTab) ?? 0
+        let nextIndex = MainTab.allCases.firstIndex(of: tab) ?? 0
+        tabTransitionForward = nextIndex > currentIndex
         withAnimation(HabfitiseAnimation.tabTransition) {
             activeTab = tab
             isVisible = true

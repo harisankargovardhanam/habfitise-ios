@@ -44,7 +44,6 @@ struct WorkoutCompleteView: View {
     @State private var customRepeatDate = Calendar.current.date(byAdding: .day, value: 2, to: .now) ?? .now
     @State private var notes: String
     @State private var showDatePicker = false
-    @State private var checkmarkScale: CGFloat = 0
     @State private var showConfetti = false
     @State private var prBadgeScales: [UUID: CGFloat] = [:]
 
@@ -92,11 +91,6 @@ struct WorkoutCompleteView: View {
                 }
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.86), value: step)
-
-            if showConfetti {
-                ConfettiBurstView()
-                    .allowsHitTesting(false)
-            }
         }
         .preferredColorScheme(.dark)
     }
@@ -204,11 +198,16 @@ struct WorkoutCompleteView: View {
     private var summaryStep: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(Color(hex: "#22C55E"))
-                    .scaleEffect(checkmarkScale)
-                    .padding(.top, 24)
+                ZStack {
+                    HabfitiseCelebrationBurst()
+                        .opacity(showConfetti ? 1 : 0)
+
+                    HabfitiseLottieOrFallback(lottieName: "success", height: 120) {
+                        HabfitiseAnimatedSuccessMark()
+                    }
+                    .frame(width: 120, height: 120)
+                }
+                .padding(.top, 16)
 
                 VStack(spacing: 6) {
                     Text("Session Complete!")
@@ -402,16 +401,7 @@ struct WorkoutCompleteView: View {
 
     private func triggerSummaryAnimations() {
         showConfetti = true
-        checkmarkScale = 0
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
-            checkmarkScale = 1.2
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.68)) {
-                checkmarkScale = 1
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
             showConfetti = false
         }
     }
@@ -461,55 +451,6 @@ private struct PRBadgeRow: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(hex: "#2A2A2A"))
         )
-    }
-}
-
-// MARK: - Confetti
-
-private struct ConfettiBurstView: View {
-    private struct Particle: Identifiable {
-        let id = UUID()
-        let x: CGFloat
-        let startY: CGFloat
-        let size: CGFloat
-        let color: Color
-        let rotation: Double
-        let delay: Double
-    }
-
-    private let particles: [Particle] = (0..<40).map { index in
-        Particle(
-            x: CGFloat.random(in: 0...1),
-            startY: CGFloat.random(in: -0.15...0),
-            size: CGFloat.random(in: 6...12),
-            color: [Color(hex: "#22C55E"), .white, Color(hex: "#F59E0B")].randomElement()!,
-            rotation: Double.random(in: 0...360),
-            delay: Double(index) * 0.02
-        )
-    }
-
-    var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { context, size in
-                let t = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2)
-
-                for particle in particles {
-                    let progress = min(max((t - particle.delay) / 1.6, 0), 1)
-                    let x = particle.x * size.width
-                    let y = particle.startY * size.height + progress * size.height * 1.1
-                    guard progress > 0, progress < 1 else { continue }
-
-                    var transform = CGAffineTransform.identity
-                        .translatedBy(x: x, y: y)
-                        .rotated(by: particle.rotation * progress)
-                    context.concatenate(transform)
-                    let rect = CGRect(x: -particle.size / 2, y: -particle.size / 2, width: particle.size, height: particle.size)
-                    context.fill(Path(roundedRect: rect, cornerRadius: 2), with: .color(particle.color))
-                    context.concatenate(transform.inverted())
-                }
-            }
-        }
-        .ignoresSafeArea()
     }
 }
 

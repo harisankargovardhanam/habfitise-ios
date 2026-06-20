@@ -8,7 +8,7 @@ struct WorkoutView: View {
 
     @State private var activeWorkoutViewModel: ActiveWorkoutViewModel?
 
-    @Query(sort: [SortDescriptor(\WorkoutSession.scheduledDate, order: .reverse)])
+    @Query(sort: [SortDescriptor(\WorkoutSession.startedAt, order: .reverse)])
     private var allSessions: [WorkoutSession]
 
     private var sessions: [WorkoutSessionSummary] {
@@ -20,29 +20,18 @@ struct WorkoutView: View {
                 WorkoutSessionSummary(
                     id: session.id,
                     title: session.notes ?? "Workout Session",
-                    date: session.completedAt ?? session.scheduledDate,
+                    date: session.completedAt ?? session.startedAt,
                     exerciseCount: 4
                 )
             }
     }
 
-    private let cardOverlap: CGFloat = HabfitiseRadius.xl
-
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: -cardOverlap) {
-                VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-                    Text("Workouts")
-                        .font(HabfitiseTypography.title2)
-                        .foregroundStyle(theme.colors.textOnBackground)
-                }
-                .padding(.horizontal, HabfitiseSpacing.xxl)
-                .padding(.top, HabfitiseSpacing.xxl)
-                .padding(.bottom, HabfitiseSpacing.xxl + cardOverlap)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.colors.headerBackground)
+            VStack(spacing: HabfitiseSpacing.lg) {
+                HabfitiseTabPageHeader(title: "Workouts")
 
-                VStack(alignment: .leading, spacing: HabfitiseSpacing.xxl) {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     HabfitiseCard {
                         VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                             Text("Quick Start")
@@ -88,27 +77,16 @@ struct WorkoutView: View {
                         }
                     }
                 }
-                .padding(.horizontal, HabfitiseSpacing.xxl)
-                .padding(.top, HabfitiseSpacing.xxl)
-                .padding(.bottom, 120)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.colors.cardBackground)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: HabfitiseRadius.xl,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: HabfitiseRadius.xl,
-                        style: .continuous
-                    )
-                )
+                .padding(.horizontal, HabfitiseSpacing.lg)
             }
+            .padding(.bottom, TabBarLayout.floatingClearance)
             .reportScrollOffsetToTabBar()
         }
         .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background(theme.colors.cardBackground.ignoresSafeArea())
-        .habfitiseTabScreen()
+        .background(theme.colors.background.ignoresSafeArea())
+        .habfitiseTabScreen(immersiveHeader: true)
         .fullScreenCover(item: $activeWorkoutViewModel) { workoutVM in
             ActiveWorkoutView(viewModel: workoutVM)
                 .environment(appState)

@@ -11,8 +11,9 @@ struct TasksView: View {
                 TasksContentView(userId: userId)
             } else {
                 ProgressView()
-                    .tint(theme.colors.textOnBackground)
-                    .habfitiseGreenBackground()
+                    .tint(theme.colors.accentGreen)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(theme.colors.background.ignoresSafeArea())
             }
         }
     }
@@ -24,7 +25,6 @@ struct TasksContentView: View {
     var showsBackButton = false
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
     @Environment(TabBarState.self) private var tabBarState
     @State private var viewModel = TasksViewModel()
 
@@ -51,34 +51,25 @@ struct TasksContentView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottomTrailing) {
-                ZStack(alignment: .top) {
-                    theme.colors.headerBackground
-                        .ignoresSafeArea()
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 0) {
+                tasksHeader
 
-                    VStack(spacing: 0) {
-                        greenArea
-                            .frame(height: geometry.size.height * 0.28)
-
-                        Spacer(minLength: 0)
-                    }
-
-                    VStack {
-                        Spacer(minLength: 0)
-                        whiteCard
-                            .frame(height: geometry.size.height * 0.76)
-                    }
+                if tasks.isEmpty {
+                    emptyState
+                } else {
+                    taskList
                 }
-
-                TasksFAB(pulse: viewModel.totalOpenTasks > 0) {
-                    viewModel.showAddTask = true
-                }
-                .padding(.trailing, HabfitiseSpacing.xxl)
-                .padding(.bottom, HabfitiseSpacing.xxxl + 72)
             }
+
+            TasksFAB(pulse: viewModel.totalOpenTasks > 0) {
+                viewModel.showAddTask = true
+            }
+            .padding(.trailing, HabfitiseSpacing.lg)
+            .padding(.bottom, TabBarLayout.floatingClearance)
         }
-        .habfitiseTabScreen()
+        .background(theme.colors.background.ignoresSafeArea())
+        .habfitiseTabScreen(immersiveHeader: showsBackButton ? false : true)
         .onAppear {
             tabBarState.resetScrollState()
             syncViewModel()
@@ -114,58 +105,34 @@ struct TasksContentView: View {
         }
     }
 
-    // MARK: - Green Area
-
-    private var greenArea: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-            HStack(alignment: .center) {
-                if showsBackButton {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(theme.colors.textOnBackground)
-                    }
-                }
-
-                Text("Tasks")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.colors.textOnBackground)
-
-                Spacer()
-            }
+    private var tasksHeader: some View {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+            HabfitiseTabPageHeader(title: "Tasks", showsBackButton: showsBackButton)
 
             TasksHeaderChipRow(
                 todayCount: viewModel.todayCount,
                 upcomingCount: viewModel.upcomingCount
             )
+            .padding(.horizontal, HabfitiseSpacing.lg)
         }
-        .padding(.horizontal, HabfitiseSpacing.lg)
-        .padding(.top, HabfitiseSpacing.sm)
+        .padding(.bottom, HabfitiseSpacing.md)
     }
 
-    // MARK: - White Card
-
-    private var whiteCard: some View {
-        Group {
-            if tasks.isEmpty {
-                ScrollView {
-                    VStack(spacing: HabfitiseSpacing.lg) {
-                        HabfitiseSectionLabel(text: "Today")
-                        Text("No tasks yet")
-                            .font(HabfitiseTypography.subheadline)
-                            .foregroundStyle(theme.colors.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, HabfitiseSpacing.lg)
-                    }
-                    .padding(.top, HabfitiseSpacing.xxl)
-                }
-                .habfitiseCard()
-            } else {
-                taskList
+    private var emptyState: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
+                HabfitiseSectionLabel(text: "Today")
+                Text("No tasks yet")
+                    .font(HabfitiseTypography.subheadline)
+                    .foregroundStyle(theme.colors.textSecondary)
             }
+            .padding(.horizontal, HabfitiseSpacing.lg)
+            .padding(.top, HabfitiseSpacing.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollIndicators(.hidden)
+        .reportScrollOffsetToTabBar()
+        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
     }
 
     private var taskList: some View {
@@ -202,9 +169,9 @@ struct TasksContentView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
         .reportScrollOffsetToTabBar()
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .habfitiseCard()
     }
 
     private func syncViewModel() {
