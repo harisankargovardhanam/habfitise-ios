@@ -251,44 +251,45 @@ private struct BentoProfileAvatar: View {
 
 struct BentoPeriodPicker: View {
     @Binding var selection: BentoMetricsPeriod
-    @Namespace private var pickerNamespace
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(BentoMetricsPeriod.allCases) { period in
+                let isSelected = selection == period
+
                 Button {
-                    withAnimation(.easeInOut(duration: 0.28)) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
                         selection = period
                     }
                 } label: {
                     Text(period.rawValue)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(selection == period ? theme.colors.accentGreen : theme.colors.textSecondary)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(isSelected ? theme.colors.accentGreen : .secondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                         .background {
-                            if selection == period {
+                            if isSelected {
                                 Capsule()
-                                    .fill(theme.colors.fieldBackground)
-                                    .matchedGeometryEffect(id: "bentoPeriodPill", in: pickerNamespace)
+                                    .fill(theme.colors.cardBackground)
                             }
                         }
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(4)
+        .padding(3)
         .background(
             Capsule()
-                .fill(theme.colors.fieldBackground.opacity(0.85))
+                .fill(theme.colors.fieldBackground)
         )
     }
 }
 
-// MARK: - Capsule chart
+// MARK: - Activity chart
 
-struct BentoCapsuleChart: View {
+/// Green capsule bar chart body — embed inside `BentoCardContainer`.
+struct BentoActivityChartBody: View {
     @Binding var period: BentoMetricsPeriod
     let bars: [BentoActivityBar]
     let maxHeight: CGFloat = 120
@@ -301,10 +302,6 @@ struct BentoCapsuleChart: View {
         let peak = max(bars.map(\.value).max() ?? 0, 1)
 
         VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            Text("Activity")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
-
             BentoPeriodPicker(selection: $period)
 
             HStack(alignment: .bottom, spacing: HabfitiseSpacing.sm) {
@@ -332,10 +329,11 @@ struct BentoCapsuleChart: View {
                     .frame(height: maxHeight + 24, alignment: .bottom)
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, HabfitiseSpacing.sm)
             .padding(.vertical, HabfitiseSpacing.lg)
             .background(
-                RoundedRectangle(cornerRadius: BentoDashboardTheme.cardRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
                     .fill(theme.colors.accentGreen)
             )
         }
@@ -371,6 +369,24 @@ struct BentoCapsuleChart: View {
         barsRevealed = false
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             barsRevealed = true
+        }
+    }
+}
+
+/// Standalone full-width activity block (legacy / previews).
+struct BentoCapsuleChart: View {
+    @Binding var period: BentoMetricsPeriod
+    let bars: [BentoActivityBar]
+
+    @Environment(ThemeManager.self) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+            Text("Activity")
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.colors.textPrimary)
+
+            BentoActivityChartBody(period: $period, bars: bars)
         }
     }
 }

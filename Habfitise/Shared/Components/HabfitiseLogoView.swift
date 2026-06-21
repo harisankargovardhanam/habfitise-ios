@@ -1,14 +1,22 @@
 import SwiftUI
 
-/// Brand wordmark from `HabfitiseLogo` asset — preserves green "fit" accent.
+/// Brand mark from `HabfitiseLogo` asset (HF. on black). Always scales down to fit — never crops.
 struct HabfitiseLogoView: View {
-    var height: CGFloat = 32
+    var height: CGFloat = 40
+    var maxWidth: CGFloat?
 
     var body: some View {
         Image("HabfitiseLogo")
             .resizable()
+            .renderingMode(.original)
+            .interpolation(.high)
+            .antialiased(true)
             .scaledToFit()
-            .frame(height: height)
+            .frame(
+                maxWidth: maxWidth,
+                maxHeight: height
+            )
+            .fixedSize(horizontal: false, vertical: true)
             .accessibilityLabel("Habfitise")
     }
 }
@@ -17,10 +25,11 @@ struct HabfitiseLogoView: View {
 struct HabfitiseLogoView_Previews: PreviewProvider {
     static var previews: some View {
         VStack(spacing: 24) {
-            HabfitiseLogoView(height: 28)
-            HabfitiseLogoView(height: 40)
+            HabfitiseLogoView(height: 56, maxWidth: 200)
+            HabfitiseLogoView(height: 40, maxWidth: 120)
         }
         .padding()
+        .background(Color(hex: "#1A1A1A"))
     }
 }
 #endif

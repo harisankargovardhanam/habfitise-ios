@@ -4,12 +4,14 @@ import SwiftUI
 
 enum BentoCardStyle {
     static let cornerRadius: CGFloat = 20
-    static let contentPadding: CGFloat = HabfitiseSpacing.lg
-    static let compactContentPadding: CGFloat = 12
+    static let contentPadding: CGFloat = 16
+    static let compactContentPadding: CGFloat = 16
     static let headerIconSize: CGFloat = 16
     static let metricCellHeight: CGFloat = 148
+    static let compactSquareHeight: CGFloat = 148
     static let metricGridSpacing: CGFloat = 16
-    static let compactContentSpacing: CGFloat = 8
+    static let compactContentSpacing: CGFloat = 6
+    static let headerContentSpacing: CGFloat = 6
 
     static let shadowColor = Color.black.opacity(0.04)
     static let shadowRadius: CGFloat = 10
@@ -20,6 +22,7 @@ enum BentoCardStyle {
 // MARK: - Card accent (icon + focal color per domain)
 
 enum BentoCardAccent {
+    case activity
     case workout
     case habits
     case tasks
@@ -30,6 +33,7 @@ enum BentoCardAccent {
 
     var systemImage: String {
         switch self {
+        case .activity: "chart.bar.fill"
         case .workout: "dumbbell.fill"
         case .habits: "leaf.fill"
         case .tasks: "checklist"
@@ -42,6 +46,7 @@ enum BentoCardAccent {
 
     func focalColor(in colors: ThemeColors) -> Color {
         switch self {
+        case .activity: colors.accentGreen
         case .workout: colors.accentGreen
         case .habits: colors.accentGreen
         case .tasks: colors.accentGreen
@@ -81,10 +86,9 @@ extension View {
         modifier(BentoCardSurfaceModifier(compact: compact))
     }
 
-    /// Fixed-height cell for the home bento metric grid.
-    func bentoMetricCell() -> some View {
-        frame(height: BentoCardStyle.metricCellHeight)
-            .clipped()
+    /// Shared minimum height for compact half-width bento widgets.
+    func bentoCompactSquareCell() -> some View {
+        frame(minHeight: BentoCardStyle.compactSquareHeight, alignment: .topLeading)
     }
 }
 
@@ -110,7 +114,7 @@ struct BentoCardHeader: View {
                 .font(.caption)
                 .fontWeight(.bold)
                 .tracking(1.0)
-                .foregroundStyle(theme.colors.textSecondary.opacity(0.92))
+                .foregroundStyle(theme.colors.textSecondary)
 
             Spacer(minLength: 4)
 
@@ -135,7 +139,7 @@ struct BentoCardContainer<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? BentoCardStyle.compactContentSpacing : HabfitiseSpacing.md) {
+        VStack(alignment: .leading, spacing: compact ? BentoCardStyle.headerContentSpacing : HabfitiseSpacing.md) {
             BentoCardHeader(
                 title: title,
                 accent: accent,

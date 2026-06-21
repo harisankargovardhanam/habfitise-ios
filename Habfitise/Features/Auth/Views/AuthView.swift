@@ -19,7 +19,7 @@ struct AuthView: View {
                 VStack {
                     Spacer()
 
-                    HabfitiseLogoView(height: 40)
+                    HabfitiseLogoView(height: 120, maxWidth: 240)
                         .padding(.horizontal, HabfitiseSpacing.xl)
 
                     Spacer()

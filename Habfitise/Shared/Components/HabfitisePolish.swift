@@ -28,6 +28,10 @@ enum HabfitiseHaptics {
     static func destructive() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
+
+    static func selectionChanged() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
 }
 
 // MARK: - Empty State

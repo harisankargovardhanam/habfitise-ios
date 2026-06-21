@@ -109,6 +109,10 @@ struct HabitsContentView: View {
                     .habfitiseStaggeredAppear(index: 0)
 
                 LazyVStack(spacing: 12) {
+                    AddHabitRow {
+                        viewModel.showAddHabit = true
+                    }
+
                     if !viewModel.hasLoadedHabits {
                         HabitListSkeleton()
                     } else if habits.isEmpty {
@@ -173,10 +177,6 @@ struct HabitsContentView: View {
                             )
                         }
                     )
-
-                    AddHabitRow {
-                        viewModel.showAddHabit = true
-                    }
                 }
                 .habfitiseStaggeredAppear(index: 1)
                 .padding(.horizontal, HabfitiseSpacing.lg)

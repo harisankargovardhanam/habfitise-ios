@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Water intake card (bento half-width)
+// MARK: - Water intake card (full-width horizontal)
 
 struct BentoWaterIntakeCard: View {
     let currentML: Int
@@ -26,18 +26,93 @@ struct BentoWaterIntakeCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            headerRow
+        BentoCardContainer(title: "Water", accent: .water) {
+            VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+                HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
+                    WaterBottleView(progress: animatedProgress)
+                        .frame(width: 56, height: 96)
 
-            WaterBottleView(progress: animatedProgress)
-                .frame(height: 96)
-                .frame(maxWidth: .infinity)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(currentML.formatted())
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundStyle(theme.colors.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
 
-            statsBlock
+                            Text("ml")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(theme.colors.textSecondary)
+                        }
 
-            glassesSection
+                        Text("of \(goalML.formatted()) ml goal")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.colors.textSecondary)
+
+                        HStack(spacing: HabfitiseSpacing.sm) {
+                            Capsule()
+                                .fill(theme.colors.trackBackground)
+                                .overlay(alignment: .leading) {
+                                    Capsule()
+                                        .fill(theme.colors.waterBlue)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .scaleEffect(x: animatedProgress, anchor: .leading)
+                                }
+                                .frame(height: 10)
+
+                            Text("\(percent)%")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(theme.colors.waterBlue)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(theme.colors.waterBlue.opacity(0.14))
+                                )
+                                .fixedSize()
+                        }
+
+                        Text("\(remainingML.formatted()) ml remaining")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+                    HStack {
+                        Text("GLASSES")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundStyle(theme.colors.textSecondary)
+
+                        Spacer(minLength: 0)
+
+                        Text("\(filledGlasses) / \(glassCount)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+
+                    HStack(spacing: 6) {
+                        ForEach(0..<glassCount, id: \.self) { index in
+                            Button(action: onLogGlass) {
+                                Image(systemName: "drop.fill")
+                                    .font(.system(size: 16))
+                                    .symbolRenderingMode(.hierarchical)
+                                    .foregroundStyle(
+                                        index < filledGlasses
+                                            ? theme.colors.waterBlue
+                                            : theme.colors.trackBackground
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 22)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
         }
-        .bentoCardSurface()
         .onAppear {
             withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
                 animatedProgress = progress
@@ -46,92 +121,6 @@ struct BentoWaterIntakeCard: View {
         .onChange(of: progress) { _, newValue in
             withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
                 animatedProgress = newValue
-            }
-        }
-    }
-
-    private var headerRow: some View {
-        HStack(alignment: .center, spacing: HabfitiseSpacing.sm) {
-            Image(systemName: BentoCardAccent.water.systemImage)
-                .font(.system(size: BentoCardStyle.headerIconSize, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(theme.colors.waterBlue)
-
-            Text("WATER")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(1.0)
-                .foregroundStyle(theme.colors.waterBlue.opacity(0.92))
-        }
-    }
-
-    private var statsBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(currentML.formatted())
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.colors.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
-                Text("ml")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(theme.colors.textSecondary)
-            }
-
-            Text("of \(goalML.formatted()) ml goal")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textSecondary)
-
-            Text("\(percent)%")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(theme.colors.waterBlue)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(theme.colors.waterBlue.opacity(0.14))
-                )
-                .padding(.top, 2)
-
-            Text("\(remainingML.formatted()) ml remaining")
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textTertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var glassesSection: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            HStack {
-                Text("GLASSES")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(theme.colors.textTertiary)
-
-                Spacer()
-
-                Text("\(filledGlasses) / \(glassCount)")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(theme.colors.textSecondary)
-            }
-
-            HStack(spacing: 4) {
-                ForEach(0..<glassCount, id: \.self) { index in
-                    Button(action: onLogGlass) {
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 14))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(
-                                index < filledGlasses
-                                    ? theme.colors.waterBlue
-                                    : theme.colors.trackBackground
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 22)
-                    }
-                    .buttonStyle(.plain)
-                }
             }
         }
     }
@@ -145,31 +134,27 @@ private struct WaterBottleView: View {
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        GeometryReader { geometry in
-            let bottle = WaterBottleOutlineShape()
+        let bottle = WaterBottleOutlineShape()
 
-            ZStack {
-                bottle
-                    .fill(theme.colors.trackBackground.opacity(0.22))
+        ZStack {
+            bottle
+                .fill(theme.colors.trackBackground.opacity(0.22))
 
-                bottle
-                    .stroke(theme.colors.trackBackground, lineWidth: 1.5)
+            bottle
+                .stroke(theme.colors.trackBackground, lineWidth: 1.5)
 
-                WaveWaterFill(progress: progress)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                theme.colors.waterBlue.opacity(0.7),
-                                theme.colors.waterBlue
-                            ],
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
+            WaveWaterFill(progress: progress)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            theme.colors.waterBlue.opacity(0.7),
+                            theme.colors.waterBlue
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
                     )
-                    .mask(bottle)
-            }
-            .frame(width: geometry.size.width * 0.42, height: geometry.size.height)
-            .frame(maxWidth: .infinity)
+                )
+                .mask(bottle)
         }
     }
 }
@@ -261,31 +246,15 @@ private struct WaveWaterFill: Shape {
 struct BentoWaterIntakeCard_Previews: PreviewProvider {
     static var previews: some View {
         BentoWaterIntakeCard(
-            currentML: 2100,
-            goalML: 2500,
-            filledGlasses: 6,
+            currentML: 6375,
+            goalML: 3000,
+            filledGlasses: 8,
             glassCount: 8,
             onLogGlass: {}
         )
         .padding()
         .environment(ThemeManager())
-        .previewDisplayName("Ocean Navy")
         .preferredColorScheme(.dark)
-
-        BentoWaterIntakeCard(
-            currentML: 900,
-            goalML: 2500,
-            filledGlasses: 3,
-            glassCount: 8,
-            onLogGlass: {}
-        )
-        .padding()
-        .environment({
-            let manager = ThemeManager()
-            manager.applyTheme(.forestGreen)
-            return manager
-        }())
-        .previewDisplayName("Forest Green")
     }
 }
 #endif

@@ -34,6 +34,7 @@ struct HomeContentView: View {
     @State private var detailSessionRoute: HomeSessionRoute?
     @State private var showProfile = false
     @State private var showAddTask = false
+    @State private var showWeightLog = false
 
     @Bindable private var notificationBridge = WorkoutNotificationBridge.shared
 
@@ -46,6 +47,7 @@ struct HomeContentView: View {
     @Query private var pendingMissedWorkouts: [MissedWorkout]
     @Query private var profiles: [UserProfile]
     @Query private var waterGoals: [WaterGoal]
+    @Query private var bodyWeightEntries: [BodyWeightEntry]
 
     init(userId: String) {
         self.userId = userId
@@ -117,24 +119,32 @@ struct HomeContentView: View {
                 goal.userId == userId
             }
         )
+
+        _bodyWeightEntries = Query(
+            filter: #Predicate<BodyWeightEntry> { entry in
+                entry.userId == userId
+            },
+            sort: [SortDescriptor(\.loggedAt, order: .reverse)]
+        )
     }
 
     var body: some View {
         bentoDashboard
             .toolbar(.hidden, for: .navigationBar)
-            .onAppear {
-                tabBarState.resetScrollState()
-                syncViewModel()
-            }
-            .onChange(of: habits.map(\.id)) { _, _ in syncViewModel() }
-            .onChange(of: tasks.map(\.id)) { _, _ in syncViewModel() }
-            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in syncViewModel() }
-            .onChange(of: workoutTemplates.map(\.id)) { _, _ in syncViewModel() }
-            .onChange(of: todaySessions.map(\.id)) { _, _ in syncViewModel() }
-            .onChange(of: recentSessions.map(\.id)) { _, _ in syncViewModel() }
-            .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
-                consumeNotificationBuilder()
-            }
+            .modifier(HomeDashboardLifecycleModifier(
+                userId: userId,
+                habits: habits,
+                tasks: tasks,
+                waterLogs: waterLogs,
+                workoutTemplates: workoutTemplates,
+                todaySessions: todaySessions,
+                recentSessions: recentSessions,
+                showWeightLog: $showWeightLog,
+                tabBarState: tabBarState,
+                notificationBridge: notificationBridge,
+                onSync: syncViewModel,
+                onConsumeNotification: consumeNotificationBuilder
+            ))
             .modifier(HomePresentationModifier(
                 userId: userId,
                 habits: habits,
@@ -168,32 +178,22 @@ struct HomeContentView: View {
                 homeDashboardHeader
                     .habfitiseStaggeredAppear(index: 0)
 
-                BentoCapsuleChart(period: $metricsPeriod, bars: activityBars)
+                homeDashboardCards
                     .habfitiseStaggeredAppear(index: 1)
-
-                VStack(spacing: HabfitiseSpacing.md) {
-                    bentoWorkoutCell
-                        .habfitiseStaggeredAppear(index: 2)
-
-                    BentoMetricGrid {
-                        bentoHabitsCell
-                        bentoTasksCell
-                    }
-                    .habfitiseStaggeredAppear(index: 3)
-
-                    BentoTwinColumnRow {
-                        bentoWaterCell
-                    } right: {
-                        bentoStreakCell
-                    }
-                    .habfitiseStaggeredAppear(index: 4)
-                }
-
-                BentoCardContainer(title: "Energy Check-in", accent: .mood) {
-                    BentoMoodSelector(viewModel: viewModel, userId: userId)
-                }
-                .habfitiseStaggeredAppear(index: 5)
             }
+        }
+    }
+
+    private var homeDashboardCards: some View {
+        VStack(spacing: BentoCardStyle.metricGridSpacing) {
+            bentoWorkoutCell
+            bentoActivityCell
+            bentoWaterCell
+            bentoHabitsCell
+            bentoTasksCell
+            bentoStreakCell
+            bentoWeightCell
+            bentoEnergyCell
         }
     }
 
@@ -210,6 +210,18 @@ struct HomeContentView: View {
             .accessibilityLabel("Open profile")
         }
         .padding(.horizontal, 4)
+    }
+
+    private var bentoActivityCell: some View {
+        BentoCardContainer(title: "Activity", accent: .activity) {
+            BentoActivityChartBody(period: $metricsPeriod, bars: activityBars)
+        }
+    }
+
+    private var bentoEnergyCell: some View {
+        BentoCardContainer(title: "Energy Check-in", accent: .mood) {
+            BentoMoodSelector(viewModel: viewModel, userId: userId)
+        }
     }
 
     private var bentoWorkoutCell: some View {
@@ -252,31 +264,27 @@ struct HomeContentView: View {
             title: "Habits",
             accent: .habits,
             actionTitle: "All",
-            action: openHabits,
-            compact: true
+            action: openHabits
         ) {
             if viewModel.habitItems.isEmpty {
                 Text("No habits yet")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(themeManager.colors.textSecondary)
-                    .lineLimit(1)
             } else {
-                VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
                     BentoMetricLabel(
                         value: "\(viewModel.habitItems.filter(\.isCompleted).count)/\(viewModel.habitItems.count)",
-                        label: "completed today",
-                        compact: true
+                        label: "completed today"
                     )
 
-                    HStack(spacing: 4) {
-                        ForEach(viewModel.habitItems.prefix(2)) { item in
-                            BentoHabitChip(item: item, compact: true)
+                    VStack(spacing: HabfitiseSpacing.sm) {
+                        ForEach(viewModel.habitItems) { item in
+                            BentoHabitRow(item: item)
                         }
                     }
                 }
             }
         }
-        .bentoMetricCell()
     }
 
     private var bentoTasksCell: some View {
@@ -284,15 +292,13 @@ struct HomeContentView: View {
             title: "Tasks",
             accent: .tasks,
             actionTitle: "All",
-            action: openTasks,
-            compact: true
+            action: openTasks
         ) {
             if viewModel.taskItems.isEmpty {
                 HStack(spacing: BentoCardStyle.compactContentSpacing) {
                     Text("Nothing due")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(themeManager.colors.textSecondary)
-                        .lineLimit(1)
 
                     Spacer(minLength: 0)
 
@@ -300,27 +306,27 @@ struct HomeContentView: View {
                         showAddTask = true
                     } label: {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 18, weight: .semibold))
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(BentoCardAccent.tasks.focalColor(in: themeManager.colors))
                     }
                     .buttonStyle(.plain)
                 }
             } else {
-                VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
                     BentoMetricLabel(
                         value: "\(viewModel.taskItems.count)",
-                        label: "open tasks",
-                        compact: true
+                        label: "open tasks"
                     )
 
-                    if let task = viewModel.taskItems.first {
-                        BentoTaskRow(task: task, compact: true)
+                    VStack(spacing: HabfitiseSpacing.sm) {
+                        ForEach(viewModel.taskItems) { task in
+                            BentoTaskListRow(task: task)
+                        }
                     }
                 }
             }
         }
-        .bentoMetricCell()
     }
 
     private var bentoWaterCell: some View {
@@ -336,34 +342,119 @@ struct HomeContentView: View {
     }
 
     private var bentoStreakCell: some View {
-        BentoCardContainer(title: "Streak", accent: .streak, compact: true) {
-            HStack(spacing: HabfitiseSpacing.sm) {
+        BentoCardContainer(title: "Streak", accent: .streak) {
+            HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
                 BentoWeeklyRing(
                     workoutsThisWeek: viewModel.streakStats.weeklyCompleted,
-                    total: viewModel.streakStats.weeklyTotal,
-                    compact: true
+                    total: viewModel.streakStats.weeklyTotal
                 )
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(viewModel.streakStats.sessionsLogged)")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(themeManager.colors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                HStack(spacing: HabfitiseSpacing.lg) {
+                    bentoHorizontalStat(
+                        value: "\(viewModel.streakStats.dayStreak)",
+                        label: "Day streak",
+                        accent: BentoCardAccent.streak.focalColor(in: themeManager.colors)
+                    )
 
-                    Text("sessions")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(themeManager.colors.textSecondary)
-                        .lineLimit(1)
+                    bentoHorizontalStat(
+                        value: "\(viewModel.streakStats.sessionsLogged)",
+                        label: "Sessions",
+                        accent: themeManager.colors.textPrimary
+                    )
 
-                    Text("\(viewModel.streakStats.habitsDone) habits")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(BentoCardAccent.streak.focalColor(in: themeManager.colors))
-                        .lineLimit(1)
+                    bentoHorizontalStat(
+                        value: "\(viewModel.streakStats.habitsDone)",
+                        label: "Habits",
+                        accent: themeManager.colors.accentGreen
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var bentoWeightCell: some View {
+        BentoCardContainer(title: "Weight", accent: .bodyWeight) {
+            HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
+                ZStack {
+                    Circle()
+                        .fill(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors).opacity(0.14))
+                    Image(systemName: "scalemass.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors))
+                }
+                .frame(width: 56, height: 56)
+
+                Group {
+                    if let latest = bodyWeightEntries.first {
+                        bentoWeightMetrics(
+                            value: String(format: "%.1f", latest.weightKg),
+                            subtitle: "Latest entry"
+                        )
+                    } else if let profileWeight = profiles.first?.weightKg, profileWeight > 0 {
+                        bentoWeightMetrics(
+                            value: String(format: "%.1f", profileWeight),
+                            subtitle: "From profile"
+                        )
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Log your weight")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundStyle(themeManager.colors.textPrimary)
+                            Text("Tap to add an entry")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(themeManager.colors.textSecondary)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(themeManager.colors.textTertiary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showWeightLog = true
+        }
+    }
+
+    private func bentoWeightMetrics(value: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text("kg")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+            }
+
+            Text(subtitle)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(themeManager.colors.textSecondary)
+        }
+    }
+
+    private func bentoHorizontalStat(value: String, label: String, accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(themeManager.colors.textSecondary)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -530,6 +621,58 @@ struct HomeContentView: View {
 
 // MARK: - Bento micro-components
 
+private struct BentoHabitRow: View {
+    let item: HomeHabitChipItem
+    @Environment(ThemeManager.self) private var theme
+
+    var body: some View {
+        HStack(spacing: HabfitiseSpacing.sm) {
+            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(item.isCompleted ? theme.colors.accentGreen : theme.colors.textSecondary)
+
+            Text(item.name)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, HabfitiseSpacing.md)
+        .padding(.vertical, HabfitiseSpacing.sm + 2)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(theme.colors.fieldBackground)
+        )
+    }
+}
+
+private struct BentoTaskListRow: View {
+    let task: HomeTaskItem
+    @Environment(ThemeManager.self) private var theme
+
+    var body: some View {
+        HStack(spacing: HabfitiseSpacing.sm) {
+            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(task.isComplete ? theme.colors.accentGreen : theme.colors.textSecondary)
+
+            Text(task.title)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, HabfitiseSpacing.md)
+        .padding(.vertical, HabfitiseSpacing.sm + 2)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(theme.colors.fieldBackground)
+        )
+    }
+}
+
 private struct BentoHabitChip: View {
     let item: HomeHabitChipItem
     var compact: Bool = false
@@ -544,8 +687,10 @@ private struct BentoHabitChip: View {
             Text(item.name)
                 .font(.system(size: compact ? 10 : 12, weight: .semibold, design: .rounded))
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
         .foregroundStyle(item.isCompleted ? theme.colors.accentGreen : theme.colors.textPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, compact ? 8 : 12)
         .padding(.vertical, compact ? 5 : 8)
         .background(
@@ -640,6 +785,80 @@ private struct BentoWeeklyRing: View {
 private struct HomeSessionRoute: Identifiable {
     let session: WorkoutSession
     var id: UUID { session.id }
+}
+
+private struct HomeDashboardLifecycleModifier: ViewModifier {
+    let userId: String
+    let habits: [Habit]
+    let tasks: [TaskRecord]
+    let waterLogs: [WaterLog]
+    let workoutTemplates: [WorkoutTemplate]
+    let todaySessions: [WorkoutSession]
+    let recentSessions: [WorkoutSession]
+    @Binding var showWeightLog: Bool
+    let tabBarState: TabBarState
+    let notificationBridge: WorkoutNotificationBridge
+    let onSync: () -> Void
+    let onConsumeNotification: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(HomeDashboardAppearModifier(
+                tabBarState: tabBarState,
+                onSync: onSync
+            ))
+            .modifier(HomeDashboardDataSyncModifier(
+                habits: habits,
+                tasks: tasks,
+                waterLogs: waterLogs,
+                workoutTemplates: workoutTemplates,
+                todaySessions: todaySessions,
+                recentSessions: recentSessions,
+                notificationBridge: notificationBridge,
+                onSync: onSync,
+                onConsumeNotification: onConsumeNotification
+            ))
+            .sheet(isPresented: $showWeightLog) {
+                BodyWeightLogSheet(userId: userId)
+            }
+    }
+}
+
+private struct HomeDashboardAppearModifier: ViewModifier {
+    let tabBarState: TabBarState
+    let onSync: () -> Void
+
+    func body(content: Content) -> some View {
+        content.onAppear {
+            tabBarState.resetScrollState()
+            onSync()
+        }
+    }
+}
+
+private struct HomeDashboardDataSyncModifier: ViewModifier {
+    let habits: [Habit]
+    let tasks: [TaskRecord]
+    let waterLogs: [WaterLog]
+    let workoutTemplates: [WorkoutTemplate]
+    let todaySessions: [WorkoutSession]
+    let recentSessions: [WorkoutSession]
+    let notificationBridge: WorkoutNotificationBridge
+    let onSync: () -> Void
+    let onConsumeNotification: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: habits.map(\.id)) { _, _ in onSync() }
+            .onChange(of: tasks.map(\.id)) { _, _ in onSync() }
+            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in onSync() }
+            .onChange(of: workoutTemplates.map(\.id)) { _, _ in onSync() }
+            .onChange(of: todaySessions.map(\.id)) { _, _ in onSync() }
+            .onChange(of: recentSessions.map(\.id)) { _, _ in onSync() }
+            .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
+                onConsumeNotification()
+            }
+    }
 }
 
 private struct HomePresentationModifier: ViewModifier {
