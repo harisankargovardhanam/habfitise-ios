@@ -186,30 +186,12 @@ final class HomeViewModel {
     }
 
     private func computeStreakStats(userId: String, habits: [Habit], context: ModelContext) -> HomeStreakStats {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: .now)
-        var completedDays = 0
-
-        for offset in 0..<7 {
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { continue }
-
-            let dayStart = day
-            let dayEnd = next
-            let descriptor = FetchDescriptor<HabitCompletion>(
-                predicate: #Predicate { $0.completedDate >= dayStart && $0.completedDate < dayEnd }
-            )
-            if ((try? context.fetchCount(descriptor)) ?? 0) > 0 {
-                completedDays += 1
-            }
-        }
-
         let maxStreak = habits.map { SwiftDataStack.shared.streakForHabit($0.id) }.max() ?? 0
         let userIdConst = userId
         let sessionDescriptor = FetchDescriptor<WorkoutSession>(
             predicate: #Predicate { $0.userId == userIdConst }
         )
-        let sessions = (try? context.fetch(sessionDescriptor)) ?? []
+        let sessionsLogged = (try? context.fetchCount(sessionDescriptor)) ?? 0
         let workoutsThisWeek = countWorkoutsThisWeek(userId: userId, context: context)
         let habitsDone = habitItems.filter(\.isCompleted).count
 
@@ -217,7 +199,7 @@ final class HomeViewModel {
             weeklyCompleted: workoutsThisWeek,
             weeklyTotal: 7,
             dayStreak: maxStreak,
-            sessionsLogged: sessions.count,
+            sessionsLogged: sessionsLogged,
             habitsDone: habitsDone
         )
     }

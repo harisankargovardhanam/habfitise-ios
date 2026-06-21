@@ -266,9 +266,14 @@ struct WorkoutHistoryView: View {
         }
     }
 
-    private var monthSections: [WorkoutMonthSection] {
+    private static let monthSectionFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
+        return formatter
+    }()
+
+    private var monthSections: [WorkoutMonthSection] {
+        let formatter = Self.monthSectionFormatter
 
         let grouped = Dictionary(grouping: filteredSessions) { session -> String in
             let date = session.completedAt ?? session.startedAt

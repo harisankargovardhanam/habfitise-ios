@@ -4,25 +4,23 @@ struct LiquidGlassTabBar: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(TabBarState.self) private var tabBarState
 
-    private let edgeInset: CGFloat = 20
-
     var body: some View {
         HStack {
             Spacer(minLength: 0)
 
-            HStack(spacing: MainTab.allCases.count > 4 ? 4 : 6) {
+            HStack(spacing: MainTab.allCases.count > 4 ? TabBarLayout.tabSpacingCompact : TabBarLayout.tabSpacing) {
                 ForEach(MainTab.allCases) { tab in
                     tabItem(tab)
                 }
             }
-            .padding(6)
+            .padding(TabBarLayout.capsulePadding)
             .background { glassBackground }
             .clipShape(Capsule())
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, edgeInset)
-        .padding(.bottom, edgeInset)
+        .padding(.horizontal, TabBarLayout.edgeInset)
+        .padding(.bottom, TabBarLayout.edgeInset)
         .animation(HabfitiseAnimation.tabTransition, value: tabBarState.activeTab)
         .animation(HabfitiseAnimation.tabTransition, value: tabBarState.isVisible)
     }
@@ -35,21 +33,26 @@ struct LiquidGlassTabBar: View {
         Button {
             tabBarState.selectTab(tab)
         } label: {
-            HStack(spacing: compactBar ? 6 : 8) {
+            HStack(spacing: compactBar ? 7 : 9) {
                 Image(systemName: tab.systemImage)
-                    .font(.system(size: compactBar ? 16 : 17, weight: .semibold))
+                    .font(.system(
+                        size: compactBar ? TabBarLayout.iconSizeCompact : TabBarLayout.iconSize,
+                        weight: .semibold
+                    ))
                     .habfitiseTabBounce(isActive: isActive)
 
                 if isActive {
                     Text(tab.title)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.system(size: TabBarLayout.labelSize, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                         .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 }
             }
             .foregroundStyle(isActive ? theme.colors.headerBackground : theme.colors.textOnBackground.opacity(0.88))
-            .padding(.horizontal, isActive ? (compactBar ? 12 : 16) : (compactBar ? 10 : 14))
-            .padding(.vertical, compactBar ? 10 : 12)
+            .padding(.horizontal, isActive
+                ? (compactBar ? TabBarLayout.itemPaddingHActiveCompact : TabBarLayout.itemPaddingHActive)
+                : (compactBar ? TabBarLayout.itemPaddingHInactiveCompact : TabBarLayout.itemPaddingHInactive))
+            .padding(.vertical, compactBar ? TabBarLayout.itemPaddingVCompact : TabBarLayout.itemPaddingV)
             .background {
                 if isActive {
                     Capsule()

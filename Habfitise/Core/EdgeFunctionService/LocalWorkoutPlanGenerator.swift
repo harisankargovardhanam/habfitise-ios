@@ -53,7 +53,7 @@ enum LocalWorkoutPlanGenerator {
             "generatedLocally": true
         ]
 
-        let planData = try! JSONSerialization.data(withJSONObject: plan)
+        let planData = (try? JSONSerialization.data(withJSONObject: plan)) ?? Data()
         let planJSON = String(data: planData, encoding: .utf8) ?? "{}"
 
         return WorkoutPlanResponse(

@@ -149,7 +149,7 @@ final class NotificationService: NSObject {
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: scheduledAt)
         let preferredHour = Self.preferredWorkoutHour()
-        guard var workoutTime = calendar.date(bySettingHour: preferredHour, minute: 0, second: 0, of: day) else {
+        guard let workoutTime = calendar.date(bySettingHour: preferredHour, minute: 0, second: 0, of: day) else {
             return nil
         }
         return calendar.date(byAdding: .hour, value: -1, to: workoutTime)
