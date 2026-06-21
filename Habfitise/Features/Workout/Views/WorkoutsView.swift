@@ -102,6 +102,28 @@ private struct WorkoutsContentView: View {
         return scheduled < startOfToday
     }
 
+    private var scheduledSectionIndex: Int {
+        pendingMissedItems.isEmpty ? 3 : 4
+    }
+
+    private var templatesSectionIndex: Int {
+        var index = pendingMissedItems.isEmpty ? 3 : 4
+        if todayScheduled != nil { index += 1 }
+        return index
+    }
+
+    private var aiSuggestionSectionIndex: Int {
+        templatesSectionIndex + 1
+    }
+
+    private var recentSessionsSectionIndex: Int {
+        var index = templatesSectionIndex + 1
+        if showAISuggestion, aiSuggestion != nil, recentSessions.count >= 4 {
+            index += 1
+        }
+        return index
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: HabfitiseSpacing.lg) {
@@ -116,17 +138,23 @@ private struct WorkoutsContentView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                .habfitiseStaggeredAppear(index: 0)
 
                 VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     if !pendingMissedItems.isEmpty {
                         missedWorkoutsSection
+                            .habfitiseStaggeredAppear(index: 1)
                     }
                     quickStartSection
+                        .habfitiseStaggeredAppear(index: pendingMissedItems.isEmpty ? 1 : 2)
                     WorkoutStreakCard(stats: streakStats)
+                        .habfitiseStaggeredAppear(index: pendingMissedItems.isEmpty ? 2 : 3)
                     if let scheduled = todayScheduled {
                         scheduledSection(template: scheduled, isMissed: isScheduledMissed)
+                            .habfitiseStaggeredAppear(index: scheduledSectionIndex)
                     }
                     templatesSection
+                        .habfitiseStaggeredAppear(index: templatesSectionIndex)
                     if showAISuggestion, let aiSuggestion, recentSessions.count >= 4 {
                         WorkoutAISuggestionCard(
                             suggestion: aiSuggestion,
@@ -138,8 +166,10 @@ private struct WorkoutsContentView: View {
                             },
                             onUpgrade: { appState.requireUpgrade(for: .aiDailyPlan) }
                         )
+                        .habfitiseStaggeredAppear(index: aiSuggestionSectionIndex)
                     }
                     recentSessionsSection
+                        .habfitiseStaggeredAppear(index: recentSessionsSectionIndex)
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }

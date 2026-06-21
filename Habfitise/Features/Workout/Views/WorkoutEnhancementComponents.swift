@@ -19,60 +19,58 @@ struct VolumeProgressChip: View {
 // MARK: - W7B Streak card
 
 struct WorkoutStreakCard: View {
-    let stats: WorkoutStreakStats
+    @Environment(ThemeManager.self) private var theme
 
-    private let cardBackground = Color(hex: "#2A2A2A")
-    private let accentGreen = Color(hex: "#22C55E")
-    private let mutedText = Color(hex: "#9CA3AF")
+    let stats: WorkoutStreakStats
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if stats.hasActiveStreak {
                 Text("🔥 \(stats.currentStreak) workout streak")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(accentGreen)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.colors.percentageOrange)
                 Text("Keep it going!")
-                    .font(.system(size: 13))
-                    .foregroundStyle(mutedText)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
             } else {
                 Text("Start a new streak today")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#3B82F6"))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.accentGreen)
             }
 
             HStack(spacing: 16) {
                 ZStack {
                     Circle()
-                        .stroke(cardBackground, lineWidth: 8)
+                        .stroke(theme.colors.trackBackground, lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: stats.consistency30Day)
-                        .stroke(accentGreen, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .stroke(
+                            theme.colors.accentGreen,
+                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        )
                         .rotationEffect(.degrees(-90))
                     Text("\(Int(stats.consistency30Day * 100))%")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(theme.colors.textPrimary)
                 }
                 .frame(width: 64, height: 64)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("30-day consistency")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.colors.textPrimary)
                     Text("This month: \(stats.monthCompleted)/\(stats.monthPlanned) planned")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.colors.textSecondary)
                     Text("Personal best: \(stats.bestStreak) days")
-                        .font(.system(size: 13))
-                        .foregroundStyle(mutedText)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.colors.textTertiary)
                 }
             }
         }
-        .padding(16)
+        .padding(BentoCardStyle.contentPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardBackground)
-        )
+        .bentoCardSurface()
     }
 }
 
@@ -308,29 +306,91 @@ struct BodyWeightLogSheet: View {
 }
 
 struct WorkoutStartWeightPrompt: View {
+    @Environment(ThemeManager.self) private var theme
+
     @Binding var weightText: String
     let onSave: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Log today's weight?")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-            HStack {
-                TextField("kg", text: $weightText)
-                    .keyboardType(.decimalPad)
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#2A2A2A")))
-                Button("Save", action: onSave)
-                    .foregroundStyle(Color(hex: "#22C55E"))
+        VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
+            BentoCardHeader(title: "Log Today's Weight", accent: .bodyWeight)
+
+            HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
+                VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
+                    HStack(spacing: HabfitiseSpacing.sm) {
+                        TextField("kg", text: $weightText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(theme.colors.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(theme.colors.fieldBackground)
+                            )
+                            .frame(maxWidth: 88)
+
+                        Button("Save", action: onSave)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(theme.colors.accentGreen)
+                    }
+
+                    Button("Not now", action: onDismiss)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 6) {
+                    BentoMicroSparkline(accent: theme.colors.accentGreen)
+                        .frame(width: 108, height: 36)
+
+                    Capsule()
+                        .fill(theme.colors.trackBackground)
+                        .frame(width: 108, height: 6)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(theme.colors.accentGreen.opacity(0.85))
+                                .frame(width: 72, height: 6)
+                        }
+                }
             }
-            Button("Not now", action: onDismiss)
-                .font(.system(size: 13))
-                .foregroundStyle(Color(hex: "#9CA3AF"))
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#1A1A1A")))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .bentoCardSurface(compact: true)
+    }
+}
+
+/// Decorative trend line for compact tracking cards.
+struct BentoMicroSparkline: View {
+    let accent: Color
+
+    private let samples: [CGFloat] = [0.72, 0.68, 0.70, 0.66, 0.64, 0.62, 0.58]
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(accent.opacity(0.08))
+
+                Path { path in
+                    for (index, sample) in samples.enumerated() {
+                        let x = geo.size.width * CGFloat(index) / CGFloat(max(samples.count - 1, 1))
+                        let y = geo.size.height * (1 - sample)
+                        if index == 0 {
+                            path.move(to: CGPoint(x: x, y: y))
+                        } else {
+                            path.addLine(to: CGPoint(x: x, y: y))
+                        }
+                    }
+                }
+                .stroke(accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+            }
+        }
     }
 }
 

@@ -10,7 +10,7 @@ enum BentoDashboardTheme {
     static let softFill = Color(hex: "#F3F4F6")
 
     static let sheetRadius: CGFloat = 32
-    static let cardRadius: CGFloat = 24
+    static let cardRadius: CGFloat = 20
     static let pillRadius: CGFloat = 999
 }
 

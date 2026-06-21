@@ -39,6 +39,7 @@ private struct BentoScrollOffsetReader: View {
 
 struct BentoCollapsingDashboard<Content: View>: View {
     @Environment(TabBarState.self) private var tabBarState
+    @Environment(ThemeManager.self) private var theme
 
     let greeting: String
     let primaryValue: String
@@ -49,78 +50,30 @@ struct BentoCollapsingDashboard<Content: View>: View {
     let onProfileTap: () -> Void
     @ViewBuilder let content: () -> Content
 
-    /// Visual window height — blue header shines through this transparent gap at rest.
-    private let headerWindowHeight: CGFloat = 220
-    private let bottomScrollPadding: CGFloat = 130
+    private let bottomContentPadding: CGFloat = 140
 
     var body: some View {
-        GeometryReader { geo in
-            let sheetOverlap = BentoDashboardTheme.sheetRadius
-            let transparentGap = headerWindowHeight - sheetOverlap
-            let minSheetHeight = geo.size.height - transparentGap + bottomScrollPadding
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                BentoScrollOffsetReader()
+                    .frame(height: 0)
 
-            ZStack(alignment: .top) {
-                // ── Layer 0: Pinned blue header (never scrolls) ──
-                pinnedBlueHeader
-                    .zIndex(0)
-
-                // ── Layer 1: Single ScrollView — opaque white sheet on top ──
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        BentoScrollOffsetReader()
-                            .frame(height: 0)
-
-                        Color.clear
-                            .frame(height: transparentGap)
-
-                        content()
-                            .padding(.horizontal, HabfitiseSpacing.xl)
-                            .padding(.top, HabfitiseSpacing.xxxl)
-                            .padding(.bottom, bottomScrollPadding)
-                            .frame(maxWidth: .infinity, minHeight: minSheetHeight, alignment: .top)
-                            .background {
-                                Color.white
-                                    .ignoresSafeArea(edges: .bottom)
-                            }
-                            .clipShape(BentoSheetClipShape())
-                            .shadow(color: .black.opacity(0.08), radius: 16, y: -6)
-                            .offset(y: -sheetOverlap)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .scrollIndicators(.hidden)
-                .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { minY in
-                    tabBarState.reportScrollOffset(-minY)
-                }
-                .zIndex(1)
+                content()
+                    .padding(.horizontal, HabfitiseSpacing.xl)
+                    .padding(.top, HabfitiseSpacing.md)
+                    .padding(.bottom, bottomContentPadding)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    .background(theme.colors.background.ignoresSafeArea(edges: .bottom))
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white.ignoresSafeArea())
-    }
-
-    /// Fixed header: cobalt background, greeting, metrics, avatar — pinned with Spacer below.
-    private var pinnedBlueHeader: some View {
-        VStack(spacing: 0) {
-            BentoHeroHeader(
-                greeting: greeting,
-                primaryValue: primaryValue,
-                primaryLabel: primaryLabel,
-                secondaryValue: secondaryValue,
-                secondaryLabel: secondaryLabel,
-                profileDisplayName: profileDisplayName,
-                onProfileTap: onProfileTap
-            )
-            .padding(.horizontal, HabfitiseSpacing.xxl)
-            .padding(.top, HabfitiseSpacing.sm)
-            .padding(.bottom, HabfitiseSpacing.xxxl)
-            .safeAreaPadding(.top, HabfitiseSpacing.sm)
-
-            Spacer(minLength: 0)
+        .background(theme.colors.background.ignoresSafeArea())
+        .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
+        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { minY in
+            tabBarState.reportScrollOffset(-minY)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(BentoDashboardTheme.cobalt.ignoresSafeArea(edges: .top))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -135,6 +88,22 @@ struct BentoTwinColumnRow<Left: View, Right: View>: View {
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
             right()
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+        }
+    }
+}
+
+/// Two-column bento metric grid — paired cells share a fixed row height.
+struct BentoMetricGrid<Content: View>: View {
+    private let columns = [
+        GridItem(.flexible(), spacing: BentoCardStyle.metricGridSpacing),
+        GridItem(.flexible(), spacing: BentoCardStyle.metricGridSpacing)
+    ]
+
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: BentoCardStyle.metricGridSpacing) {
+            content()
         }
     }
 }
@@ -283,6 +252,7 @@ private struct BentoProfileAvatar: View {
 struct BentoPeriodPicker: View {
     @Binding var selection: BentoMetricsPeriod
     @Namespace private var pickerNamespace
+    @Environment(ThemeManager.self) private var theme
 
     var body: some View {
         HStack(spacing: 4) {
@@ -294,13 +264,13 @@ struct BentoPeriodPicker: View {
                 } label: {
                     Text(period.rawValue)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(selection == period ? BentoDashboardTheme.cobalt : BentoDashboardTheme.label)
+                        .foregroundStyle(selection == period ? theme.colors.accentGreen : theme.colors.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background {
                             if selection == period {
                                 Capsule()
-                                    .fill(BentoDashboardTheme.softFill)
+                                    .fill(theme.colors.fieldBackground)
                                     .matchedGeometryEffect(id: "bentoPeriodPill", in: pickerNamespace)
                             }
                         }
@@ -311,7 +281,7 @@ struct BentoPeriodPicker: View {
         .padding(4)
         .background(
             Capsule()
-                .fill(BentoDashboardTheme.softFill.opacity(0.65))
+                .fill(theme.colors.fieldBackground.opacity(0.85))
         )
     }
 }
@@ -319,37 +289,31 @@ struct BentoPeriodPicker: View {
 // MARK: - Capsule chart
 
 struct BentoCapsuleChart: View {
+    @Binding var period: BentoMetricsPeriod
     let bars: [BentoActivityBar]
     let maxHeight: CGFloat = 120
+    private let idleDotSize: CGFloat = 10
 
     @State private var barsRevealed = false
+    @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        let peak = max(bars.map(\.value).max() ?? 1, 1)
+        let peak = max(bars.map(\.value).max() ?? 0, 1)
 
         VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
             Text("Activity")
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(BentoDashboardTheme.ink)
+                .foregroundStyle(theme.colors.textPrimary)
+
+            BentoPeriodPicker(selection: $period)
 
             HStack(alignment: .bottom, spacing: HabfitiseSpacing.sm) {
                 ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
-                    let targetHeight = max(12, maxHeight * CGFloat(bar.value / peak))
+                    let animatedHeight = barHeight(for: bar.value, peak: peak)
 
                     VStack(spacing: 8) {
-                        Capsule()
-                            .fill(bar.isCurrent ? Color.white : BentoDashboardTheme.cobaltMuted)
-                            .frame(
-                                width: bar.isCurrent ? 18 : 14,
-                                height: barsRevealed ? targetHeight : 0
-                            )
-                            .overlay {
-                                if bar.isCurrent {
-                                    Capsule()
-                                        .stroke(BentoDashboardTheme.cobalt.opacity(0.15), lineWidth: 1)
-                                }
-                            }
-                            .shadow(color: bar.isCurrent ? BentoDashboardTheme.cobalt.opacity(0.2) : .clear, radius: 8, y: 4)
+                        barMark(for: bar, peak: peak)
+                            .frame(height: barsRevealed ? animatedHeight : 0, alignment: .bottom)
                             .animation(
                                 .spring(response: 0.5, dampingFraction: 0.7)
                                     .delay(Double(index) * 0.04),
@@ -357,21 +321,50 @@ struct BentoCapsuleChart: View {
                             )
 
                         Text(bar.label)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(bar.isCurrent ? BentoDashboardTheme.ink : BentoDashboardTheme.label)
+                            .font(.system(size: 11, weight: bar.isCurrent ? .semibold : .medium, design: .rounded))
+                            .foregroundStyle(
+                                bar.isCurrent
+                                    ? Color.white
+                                    : Color.white.opacity(0.72)
+                            )
                     }
                     .frame(maxWidth: .infinity)
+                    .frame(height: maxHeight + 24, alignment: .bottom)
                 }
             }
             .padding(.horizontal, HabfitiseSpacing.sm)
             .padding(.vertical, HabfitiseSpacing.lg)
             .background(
                 RoundedRectangle(cornerRadius: BentoDashboardTheme.cardRadius, style: .continuous)
-                    .fill(BentoDashboardTheme.cobalt)
+                    .fill(theme.colors.accentGreen)
             )
         }
         .onAppear { revealBars() }
         .onChange(of: bars.map(\.id)) { _, _ in revealBars() }
+    }
+
+    @ViewBuilder
+    private func barMark(for bar: BentoActivityBar, peak: Double) -> some View {
+        if bar.value <= 0 {
+            Circle()
+                .fill(Color.white.opacity(bar.isCurrent ? 0.9 : 0.32))
+                .frame(width: idleDotSize, height: idleDotSize)
+        } else if bar.isCurrent {
+            Capsule()
+                .fill(Color.white)
+                .frame(width: 18)
+                .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+        } else {
+            Capsule()
+                .fill(Color.white.opacity(0.42))
+                .frame(width: 14)
+        }
+    }
+
+    private func barHeight(for value: Double, peak: Double) -> CGFloat {
+        guard value > 0 else { return idleDotSize }
+        let ratio = CGFloat(value / peak)
+        return max(28, maxHeight * ratio)
     }
 
     private func revealBars() {
@@ -382,36 +375,16 @@ struct BentoCapsuleChart: View {
     }
 }
 
-// MARK: - Bento cells
-
-struct BentoCell<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        content()
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-            .padding(HabfitiseSpacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: BentoDashboardTheme.cardRadius, style: .continuous)
-                    .fill(BentoDashboardTheme.sheet)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: BentoDashboardTheme.cardRadius, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
-    }
-}
-
 // MARK: - Pill badge
 
 struct BentoPillBadge: View {
     let text: String
+    @Environment(ThemeManager.self) private var theme
 
     var body: some View {
         Text(text)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundStyle(BentoDashboardTheme.cobalt)
+            .foregroundStyle(theme.colors.accentGreen)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .fixedSize(horizontal: true, vertical: false)
@@ -419,7 +392,7 @@ struct BentoPillBadge: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(BentoDashboardTheme.cobalt.opacity(0.1))
+                    .fill(theme.colors.accentGreen.opacity(0.12))
             )
     }
 }
@@ -428,23 +401,25 @@ struct BentoPillBadge: View {
 
 struct BentoWaterDropRow: View {
     let filledCount: Int
+    var dropCount: Int = 6
     let onTap: () -> Void
 
-    private let dropCount = 6
+    @Environment(ThemeManager.self) private var theme
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<dropCount, id: \.self) { index in
                 Button(action: onTap) {
                     Image(systemName: "drop.fill")
-                        .font(.system(size: 16))
+                        .font(.system(size: 14))
+                        .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(
                             index < filledCount
-                                ? BentoDashboardTheme.cobalt
-                                : BentoDashboardTheme.softFill
+                                ? BentoCardAccent.water.focalColor(in: theme.colors)
+                                : theme.colors.trackBackground
                         )
                         .frame(maxWidth: .infinity)
-                        .frame(height: 24)
+                        .frame(height: 20)
                 }
                 .buttonStyle(.plain)
             }
@@ -455,41 +430,35 @@ struct BentoWaterDropRow: View {
 struct BentoMetricLabel: View {
     let value: String
     let label: String
+    var compact: Bool = false
+    @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(BentoDashboardTheme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Text(label)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(BentoDashboardTheme.label)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
+        if compact {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
-struct BentoSectionTitle: View {
-    let title: String
-    var actionTitle: String?
-    var action: (() -> Void)?
-
-    var body: some View {
-        HStack {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .tracking(1)
-                .foregroundStyle(BentoDashboardTheme.label)
-
-            Spacer()
-
-            if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(BentoDashboardTheme.cobalt)
+                Text(label)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .lineLimit(1)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(label)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -502,59 +471,62 @@ struct BentoMoodSelector: View {
     let userId: String
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(ThemeManager.self) private var theme
 
     private let labels = ["Drained", "Low", "Okay", "Good", "Energised"]
     private let buttonSize: CGFloat = 40
+    private let accent = BentoCardAccent.mood
 
     var body: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            Text("Energy check-in")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .tracking(1)
-                .foregroundStyle(BentoDashboardTheme.label)
+        HStack(alignment: .top, spacing: HabfitiseSpacing.sm) {
+            ForEach(0..<5, id: \.self) { index in
+                let isSelected = viewModel.selectedMood == index
 
-            HStack(alignment: .top, spacing: HabfitiseSpacing.sm) {
-                ForEach(0..<5, id: \.self) { index in
-                    let isSelected = viewModel.selectedMood == index
-
-                    VStack(spacing: 8) {
-                        Button {
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
-                                viewModel.selectMood(index, userId: userId, context: modelContext)
-                            }
-                        } label: {
-                            ZStack {
-                                if isSelected {
-                                    Circle()
-                                        .fill(BentoDashboardTheme.cobalt.opacity(0.12))
-                                        .frame(width: buttonSize + 12, height: buttonSize + 12)
-                                }
-
-                                Text("\(index + 1)")
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                                    .foregroundStyle(isSelected ? Color.white : BentoDashboardTheme.ink)
-                                    .frame(width: buttonSize, height: buttonSize)
-                                    .background(
-                                        Circle()
-                                            .fill(isSelected ? BentoDashboardTheme.cobalt : BentoDashboardTheme.softFill)
-                                    )
-                            }
-                            .scaleEffect(isSelected ? 1.15 : 1.0)
-                            .animation(.spring(response: 0.32, dampingFraction: 0.62), value: isSelected)
+                VStack(spacing: 8) {
+                    Button {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                            viewModel.selectMood(index, userId: userId, context: modelContext)
                         }
-                        .buttonStyle(.plain)
+                    } label: {
+                        ZStack {
+                            if isSelected {
+                                Circle()
+                                    .fill(accent.focalColor(in: theme.colors).opacity(0.15))
+                                    .frame(width: buttonSize + 12, height: buttonSize + 12)
+                            }
 
-                        Text(labels[index])
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(isSelected ? BentoDashboardTheme.cobalt : BentoDashboardTheme.label)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(maxWidth: .infinity)
-                            .animation(.easeInOut(duration: 0.2), value: isSelected)
+                            Text("\(index + 1)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(isSelected ? Color.white : theme.colors.textPrimary)
+                                .frame(width: buttonSize, height: buttonSize)
+                                .background(
+                                    Circle()
+                                        .fill(
+                                            isSelected
+                                                ? accent.focalColor(in: theme.colors)
+                                                : theme.colors.fieldBackground
+                                        )
+                                )
+                        }
+                        .scaleEffect(isSelected ? 1.15 : 1.0)
+                        .animation(.spring(response: 0.32, dampingFraction: 0.62), value: isSelected)
                     }
-                    .frame(minWidth: 0, maxWidth: .infinity)
+                    .buttonStyle(.plain)
+
+                    Text(labels[index])
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(
+                            isSelected
+                                ? accent.focalColor(in: theme.colors)
+                                : theme.colors.textSecondary
+                        )
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .animation(.easeInOut(duration: 0.2), value: isSelected)
                 }
+                .frame(minWidth: 0, maxWidth: .infinity)
             }
         }
     }
@@ -567,6 +539,7 @@ struct BentoWaterProgress: View {
     let goal: Int
 
     @State private var animatedProgress: Double = 0
+    @Environment(ThemeManager.self) private var theme
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -578,11 +551,11 @@ struct BentoWaterProgress: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(BentoDashboardTheme.softFill)
+                        .fill(theme.colors.trackBackground)
                         .frame(height: 14)
 
                     Capsule()
-                        .fill(BentoDashboardTheme.cobalt)
+                        .fill(BentoCardAccent.water.focalColor(in: theme.colors))
                         .frame(width: geometry.size.width * animatedProgress, height: 14)
                 }
             }
@@ -590,7 +563,7 @@ struct BentoWaterProgress: View {
 
             Text("\(current) / \(goal) ml")
                 .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(BentoDashboardTheme.label)
+                .foregroundStyle(theme.colors.textSecondary)
         }
         .onAppear {
             withAnimation(.spring(response: 0.8)) {
@@ -642,7 +615,7 @@ enum BentoActivityBuilder {
             return BentoActivityBar(
                 id: "\(offset)",
                 label: label,
-                value: max(count, 0.15),
+                value: count,
                 isCurrent: calendar.isDate(day, inSameDayAs: today)
             )
         }
@@ -661,7 +634,7 @@ enum BentoActivityBuilder {
             return BentoActivityBar(
                 id: "\(index)",
                 label: labels[index],
-                value: max(count, 0.15),
+                value: count,
                 isCurrent: index == hours.count - 1
             )
         }
@@ -675,7 +648,7 @@ enum BentoActivityBuilder {
                 let start = calendar.dateInterval(of: .weekOfYear, for: weekStart)?.start,
                 let end = calendar.date(byAdding: .day, value: 7, to: start)
             else {
-                return BentoActivityBar(id: "\(offset)", label: "W\(offset + 1)", value: 0.15, isCurrent: offset == 3)
+                return BentoActivityBar(id: "\(offset)", label: "W\(offset + 1)", value: 0, isCurrent: offset == 3)
             }
             let count = Double(sessions.filter { session in
                 guard let completed = session.completedAt else { return false }
@@ -684,7 +657,7 @@ enum BentoActivityBuilder {
             return BentoActivityBar(
                 id: "\(offset)",
                 label: "W\(offset + 1)",
-                value: max(count, 0.15),
+                value: count,
                 isCurrent: offset == 3
             )
         }

@@ -9,6 +9,8 @@ enum TabBarLayout {
 
 enum MainTab: String, CaseIterable, Identifiable, Hashable {
     case home
+    case habits
+    case tasks
     case workout
     case progress
 
@@ -17,6 +19,8 @@ enum MainTab: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .home: "Home"
+        case .habits: "Habits"
+        case .tasks: "Tasks"
         case .workout: "Workout"
         case .progress: "Progress"
         }
@@ -25,6 +29,8 @@ enum MainTab: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .home: "house.fill"
+        case .habits: "leaf.fill"
+        case .tasks: "checklist"
         case .workout: "dumbbell.fill"
         case .progress: "chart.bar.fill"
         }

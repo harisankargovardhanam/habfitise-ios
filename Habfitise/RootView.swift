@@ -35,9 +35,13 @@ struct RootView: View {
     }
 
     private var loadingView: some View {
-        HabfitiseBreathingLoader()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(themeManager.colors.background.ignoresSafeArea())
+        ZStack {
+            themeManager.colors.background
+                .ignoresSafeArea()
+
+            HabfitiseLogoView(height: 56)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var upgradeBinding: Binding<UpgradeTrigger?> {

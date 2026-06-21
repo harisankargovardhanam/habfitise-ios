@@ -51,14 +51,59 @@ struct TasksContentView: View {
     }
 
     var body: some View {
+        tasksScreenContent
+            .background(theme.colors.background.ignoresSafeArea())
+            .modifier(TasksScreenChromeModifier(
+                showsBackButton: showsBackButton,
+                onAdd: { viewModel.showAddTask = true }
+            ))
+            .onAppear {
+                tabBarState.resetScrollState()
+                syncViewModel()
+            }
+            .onChange(of: tasks.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: tasks.map(\.isComplete)) { _, _ in syncViewModel() }
+            .sheet(isPresented: $viewModel.showAddTask) {
+                AddTaskSheet(userId: userId, habits: habits) {
+                    syncViewModel()
+                }
+            }
+            .sheet(isPresented: $viewModel.showRescheduleSheet) {
+                if let task = viewModel.taskPendingReschedule {
+                    RescheduleTaskSheet(task: task) { date in
+                        viewModel.rescheduleTask(task, to: date, context: modelContext)
+                    }
+                }
+            }
+            .alert("Delete task?", isPresented: $viewModel.showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    HabfitiseHaptics.destructive()
+                    if let task = viewModel.taskPendingDelete {
+                        viewModel.deleteTask(task, context: modelContext)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.taskPendingDelete = nil
+                }
+            } message: {
+                if let task = viewModel.taskPendingDelete {
+                    Text("“\(task.title)” will be removed permanently.")
+                }
+            }
+    }
+
+    private var tasksScreenContent: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
                 tasksHeader
+                    .habfitiseStaggeredAppear(index: 0)
 
                 if tasks.isEmpty {
                     emptyState
+                        .habfitiseStaggeredAppear(index: 1)
                 } else {
                     taskList
+                        .habfitiseStaggeredAppear(index: 1)
                 }
             }
 
@@ -68,46 +113,13 @@ struct TasksContentView: View {
             .padding(.trailing, HabfitiseSpacing.lg)
             .padding(.bottom, TabBarLayout.floatingClearance)
         }
-        .background(theme.colors.background.ignoresSafeArea())
-        .habfitiseTabScreen(immersiveHeader: showsBackButton ? false : true)
-        .onAppear {
-            tabBarState.resetScrollState()
-            syncViewModel()
-        }
-        .onChange(of: tasks.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: tasks.map(\.isComplete)) { _, _ in syncViewModel() }
-        .sheet(isPresented: $viewModel.showAddTask) {
-            AddTaskSheet(userId: userId, habits: habits) {
-                syncViewModel()
-            }
-        }
-        .sheet(isPresented: $viewModel.showRescheduleSheet) {
-            if let task = viewModel.taskPendingReschedule {
-                RescheduleTaskSheet(task: task) { date in
-                    viewModel.rescheduleTask(task, to: date, context: modelContext)
-                }
-            }
-        }
-        .alert("Delete task?", isPresented: $viewModel.showDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                HabfitiseHaptics.destructive()
-                if let task = viewModel.taskPendingDelete {
-                    viewModel.deleteTask(task, context: modelContext)
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.taskPendingDelete = nil
-            }
-        } message: {
-            if let task = viewModel.taskPendingDelete {
-                Text("“\(task.title)” will be removed permanently.")
-            }
-        }
     }
 
     private var tasksHeader: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-            HabfitiseTabPageHeader(title: "Tasks", showsBackButton: showsBackButton)
+            if !showsBackButton {
+                HabfitiseTabPageHeader(title: "Tasks")
+            }
 
             TasksHeaderChipRow(
                 todayCount: viewModel.todayCount,
@@ -176,6 +188,23 @@ struct TasksContentView: View {
 
     private func syncViewModel() {
         viewModel.bind(tasks: tasks)
+    }
+}
+
+private struct TasksScreenChromeModifier: ViewModifier {
+    let showsBackButton: Bool
+    let onAdd: () -> Void
+
+    func body(content: Content) -> some View {
+        if showsBackButton {
+            content
+                .habfitisePushedScreen(title: "Tasks") {
+                    HabitsAddButton(action: onAdd)
+                }
+        } else {
+            content
+                .habfitiseTabScreen(immersiveHeader: true)
+        }
     }
 }
 

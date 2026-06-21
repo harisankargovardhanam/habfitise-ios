@@ -124,6 +124,8 @@ struct HabfitiseBreathingLoader: View {
 
     var body: some View {
         VStack(spacing: HabfitiseSpacing.lg) {
+            HabfitiseLogoView(height: 36)
+
             ZStack {
                 ForEach(0..<3, id: \.self) { ring in
                     Circle()

@@ -153,11 +153,6 @@ final class WorkoutBuilderViewModel {
             startedAt = resumedSession.startedAt
             loadResumedSets(context: context, session: resumedSession)
             startElapsedTimer()
-            return
-        }
-
-        if template != nil, !exercises.isEmpty {
-            startActiveSession(context: context)
         }
     }
 

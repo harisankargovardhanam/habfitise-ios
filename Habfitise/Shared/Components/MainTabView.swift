@@ -10,7 +10,7 @@ struct LiquidGlassTabBar: View {
         HStack {
             Spacer(minLength: 0)
 
-            HStack(spacing: 6) {
+            HStack(spacing: MainTab.allCases.count > 4 ? 4 : 6) {
                 ForEach(MainTab.allCases) { tab in
                     tabItem(tab)
                 }
@@ -30,29 +30,31 @@ struct LiquidGlassTabBar: View {
     @ViewBuilder
     private func tabItem(_ tab: MainTab) -> some View {
         let isActive = tabBarState.activeTab == tab
+        let compactBar = MainTab.allCases.count > 4
 
         Button {
             tabBarState.selectTab(tab)
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: compactBar ? 6 : 8) {
                 Image(systemName: tab.systemImage)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: compactBar ? 16 : 17, weight: .semibold))
                     .habfitiseTabBounce(isActive: isActive)
 
                 if isActive {
                     Text(tab.title)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
                         .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 }
             }
-            .foregroundStyle(isActive ? BentoDashboardTheme.cobalt : Color.white.opacity(0.88))
-            .padding(.horizontal, isActive ? 16 : 14)
-            .padding(.vertical, 12)
+            .foregroundStyle(isActive ? theme.colors.headerBackground : theme.colors.textOnBackground.opacity(0.88))
+            .padding(.horizontal, isActive ? (compactBar ? 12 : 16) : (compactBar ? 10 : 14))
+            .padding(.vertical, compactBar ? 10 : 12)
             .background {
                 if isActive {
                     Capsule()
                         .fill(Color.white)
-                        .shadow(color: BentoDashboardTheme.cobalt.opacity(0.2), radius: 10, y: 4)
+                        .shadow(color: theme.colors.headerBackground.opacity(0.2), radius: 10, y: 4)
                 }
             }
         }
@@ -66,7 +68,7 @@ struct LiquidGlassTabBar: View {
             .fill(.ultraThinMaterial)
             .overlay {
                 Capsule()
-                    .fill(BentoDashboardTheme.cobalt.opacity(0.58))
+                    .fill(theme.colors.headerBackground.opacity(0.72))
             }
             .overlay {
                 Capsule()
@@ -157,6 +159,10 @@ struct MainTabView: View {
                 switch tabBarState.activeTab {
                 case .home:
                     HomeView()
+                case .habits:
+                    HabitsView()
+                case .tasks:
+                    TasksView()
                 case .workout:
                     WorkoutsView()
                 case .progress:

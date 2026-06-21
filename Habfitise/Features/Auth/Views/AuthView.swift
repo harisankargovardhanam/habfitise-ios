@@ -16,9 +16,16 @@ struct AuthView: View {
                 theme.colors.headerBackground
                     .ignoresSafeArea()
 
-                HabfitiseWatermark()
-                    .padding(.top, HabfitiseSpacing.sm)
-                    .padding(.trailing, HabfitiseSpacing.lg)
+                VStack {
+                    Spacer()
+
+                    HabfitiseLogoView(height: 40)
+                        .padding(.horizontal, HabfitiseSpacing.xl)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
 
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
@@ -114,9 +121,7 @@ struct AuthView: View {
 
     private var localOnlyHeader: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            Text("Welcome to Habfitise")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
+            HabfitiseLogoView(height: 28)
 
             Text("Start building your plan")
                 .font(.system(size: 15, weight: .regular, design: .rounded))
@@ -126,9 +131,7 @@ struct AuthView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            Text("Welcome to Habfitise")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
+            HabfitiseLogoView(height: 28)
 
             Text("Sign in to continue")
                 .font(.system(size: 15, weight: .regular, design: .rounded))

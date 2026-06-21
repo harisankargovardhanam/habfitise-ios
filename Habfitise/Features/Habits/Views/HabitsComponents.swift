@@ -9,6 +9,7 @@ struct HabitCard: View {
     let streak: Int
     let isCompletedToday: Bool
     let onComplete: () -> Void
+    let onUndo: () -> Void
 
     @State private var todaySquareScale: CGFloat = 1
     @State private var displayStreak: Int
@@ -21,13 +22,15 @@ struct HabitCard: View {
         days: [HabitDayItem],
         streak: Int,
         isCompletedToday: Bool,
-        onComplete: @escaping () -> Void
+        onComplete: @escaping () -> Void,
+        onUndo: @escaping () -> Void = {}
     ) {
         self.habit = habit
         self.days = days
         self.streak = streak
         self.isCompletedToday = isCompletedToday
         self.onComplete = onComplete
+        self.onUndo = onUndo
         _displayStreak = State(initialValue: streak)
         _buttonDone = State(initialValue: isCompletedToday)
     }
@@ -98,20 +101,21 @@ struct HabitCard: View {
 
     private var doneButton: some View {
         Button {
-            guard !buttonDone else { return }
-            performCompletion()
+            if buttonDone {
+                performUndo()
+            } else {
+                performCompletion()
+            }
         } label: {
             HStack(spacing: HabfitiseSpacing.sm) {
-                if !buttonDone {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                Text(buttonDone ? "✓ Done today" : "Done today")
+                Image(systemName: buttonDone ? "arrow.uturn.backward.circle" : "checkmark.circle")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(buttonDone ? "Undo today" : "Done today")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(
                 buttonDone
-                    ? theme.colors.accentGreen
+                    ? theme.colors.textSecondary
                     : Color.white
             )
             .frame(maxWidth: .infinity)
@@ -120,14 +124,22 @@ struct HabitCard: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(
                         buttonDone
-                            ? theme.colors.chipDone
+                            ? theme.colors.fieldBackground
                             : theme.colors.accentGreen
                     )
             )
         }
         .buttonStyle(.plain)
-        .disabled(buttonDone)
         .animation(.easeInOut(duration: 0.2), value: buttonDone)
+    }
+
+    private func performUndo() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
+            buttonDone = false
+            optimisticTodayComplete = false
+            todaySquareScale = 1
+        }
+        onUndo()
     }
 
     private func performCompletion() {

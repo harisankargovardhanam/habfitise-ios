@@ -8,6 +8,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case sunsetCoral = "Sunset Coral"
     case royalViolet = "Royal Violet"
     case deepTeal = "Deep Teal"
+    case oceanNavy = "Ocean Navy"
     case darkMode = "Dark Mode"
 
     var id: String { rawValue }
@@ -19,13 +20,14 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .sunsetCoral: .sunsetCoral
         case .royalViolet: .royalViolet
         case .deepTeal: .deepTeal
+        case .oceanNavy: .oceanNavy
         case .darkMode: .darkMode
         }
     }
 
     var preferredColorScheme: ColorScheme? {
         switch self {
-        case .darkMode: .dark
+        case .darkMode, .oceanNavy: .dark
         default: .light
         }
     }
@@ -35,7 +37,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         if let theme = AppTheme(rawValue: raw) { return theme }
         switch raw {
         case "Dark Forest", "Light Clean", "Forest Deep": return .forestGreen
-        case "Midnight Blue": return .electricIndigo
+        case "Midnight Blue": return .oceanNavy
         case "Warm Charcoal": return .sunsetCoral
         default: return nil
         }
@@ -114,6 +116,35 @@ struct ThemeColors: Equatable {
         streakRing: Color.white.opacity(0.2)
     )
 
+    // MARK: Ocean Navy (dark blue — matches water card reference)
+
+    static let oceanNavy = ThemeColors(
+        background: Color(hex: "#0B141E"),
+        cardBackground: Color(hex: "#121C28"),
+        cardBorder: Color.white.opacity(0.1),
+        accentGreen: Color(hex: "#4A90E2"),
+        textPrimary: Color(hex: "#FFFFFF"),
+        textSecondary: Color(hex: "#8BA3C7"),
+        textTertiary: Color(hex: "#5C6F8A"),
+        chipBackground: Color(hex: "#1A2838"),
+        chipText: Color(hex: "#E8EEF7"),
+        navBarBackground: Color(hex: "#152030").opacity(0.92),
+        waterBlue: Color(hex: "#4A90E2"),
+        streakRing: Color.white.opacity(0.15),
+        textOnBackground: Color(hex: "#FFFFFF"),
+        headerBackground: Color(hex: "#1A2F45"),
+        textMutedOnBackground: Color.white.opacity(0.65),
+        fieldBackground: Color(hex: "#1A2838"),
+        trackBackground: Color(hex: "#243447"),
+        chipDone: Color(hex: "#1A3A5C"),
+        chipToday: Color(hex: "#2A3548"),
+        chipTomorrow: Color(hex: "#1A2F45"),
+        streakPill: Color(hex: "#2A3548"),
+        waterButtonBackground: Color(hex: "#1A3A5C"),
+        danger: Color(hex: "#FF4444"),
+        percentageOrange: Color(hex: "#FF6B35")
+    )
+
     // MARK: Dark charcoal theme (Caveman)
 
     static let darkMode = ThemeColors(
@@ -127,7 +158,7 @@ struct ThemeColors: Equatable {
         chipBackground: Color(hex: "#333333"),
         chipText: Color(hex: "#FFFFFF"),
         navBarBackground: Color(red: 30 / 255, green: 60 / 255, blue: 30 / 255).opacity(0.85),
-        waterBlue: Color(hex: "#3B82F6"),
+        waterBlue: Color(hex: "#4A90E2"),
         streakRing: Color.white.opacity(0.15),
         textOnBackground: Color(hex: "#FFFFFF"),
         headerBackground: Color(hex: "#1A6B35"),
@@ -161,7 +192,7 @@ struct ThemeColors: Equatable {
             chipBackground: Color(hex: "#F3F4F6"),
             chipText: Color(hex: "#374151"),
             navBarBackground: navBarBackground,
-            waterBlue: Color(hex: "#3B82F6"),
+            waterBlue: Color(hex: "#4A90E2"),
             streakRing: streakRing,
             textOnBackground: Color(hex: "#FFFFFF"),
             headerBackground: headerBackground,
@@ -172,7 +203,7 @@ struct ThemeColors: Equatable {
             chipToday: Color(hex: "#FEF3C7"),
             chipTomorrow: Color(hex: "#DBEAFE"),
             streakPill: Color(hex: "#FFF7ED"),
-            waterButtonBackground: Color(hex: "#DBEAFE"),
+            waterButtonBackground: chipDone,
             danger: Color(hex: "#FF4444"),
             percentageOrange: Color(hex: "#FF6B35")
         )

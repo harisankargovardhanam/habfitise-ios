@@ -33,12 +33,14 @@ extension View {
     /// Standard tab screen chrome: optional nav title + trailing sync dot.
     func habfitiseTabScreen(
         title: String? = nil,
-        immersiveHeader: Bool = false
+        immersiveHeader: Bool = false,
+        wrapsNavigationStack: Bool = true
     ) -> some View {
         modifier(
             HabfitiseTabScreenModifier(
                 title: title,
-                immersiveHeader: immersiveHeader
+                immersiveHeader: immersiveHeader,
+                wrapsNavigationStack: wrapsNavigationStack
             )
         )
     }
@@ -46,6 +48,22 @@ extension View {
     /// Matches navigation bar to the current theme background (use on pushed screens).
     func habfitiseNavigationBar() -> some View {
         modifier(HabfitiseNavigationBarModifier())
+    }
+
+    /// Navigation chrome when pushed from Home — system back + trailing action.
+    func habfitisePushedScreen<Trailing: View>(
+        title: String,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    trailing()
+                }
+            }
+            .habfitiseNavigationBar()
     }
 }
 
@@ -66,25 +84,37 @@ private struct HabfitiseTabScreenModifier: ViewModifier {
     @Environment(TabBarState.self) private var tabBarState
     let title: String?
     let immersiveHeader: Bool
+    let wrapsNavigationStack: Bool
 
     func body(content: Content) -> some View {
-        NavigationStack {
-            content
-                .navigationTitle(title ?? "")
-                .navigationBarTitleDisplayMode(title == nil ? .inline : .large)
-                .toolbar {
-                    if !AppConstants.Backend.useLocalOnly {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            SyncStatusDot()
-                        }
-                    }
+        Group {
+            if wrapsNavigationStack {
+                NavigationStack {
+                    tabScreenContent(content)
                 }
-                .toolbar(immersiveHeader ? .hidden : .visible, for: .navigationBar)
-                .habfitiseNavigationBar()
+            } else {
+                tabScreenContent(content)
+            }
         }
         .onAppear {
             tabBarState.resetScrollState()
         }
+    }
+
+    @ViewBuilder
+    private func tabScreenContent(_ content: Content) -> some View {
+        content
+            .navigationTitle(title ?? "")
+            .navigationBarTitleDisplayMode(title == nil ? .inline : .large)
+            .toolbar {
+                if !AppConstants.Backend.useLocalOnly {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        SyncStatusDot()
+                    }
+                }
+            }
+            .toolbar(immersiveHeader ? .hidden : .visible, for: .navigationBar)
+            .habfitiseNavigationBar()
     }
 }
 

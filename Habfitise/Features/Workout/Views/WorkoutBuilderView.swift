@@ -17,6 +17,7 @@ struct WorkoutBuilderView: View {
     @State private var oneRMExerciseName: String?
     @State private var startWeightText = ""
     @State private var isEditingExercises = false
+    @State private var showStartWorkoutConfirm = false
     @FocusState private var nameFocused: Bool
 
     init(type: WorkoutType, template: WorkoutTemplate?, session: WorkoutSession? = nil) {
@@ -49,6 +50,14 @@ struct WorkoutBuilderView: View {
         }
         .onDisappear {
             viewModel?.onDisappear()
+        }
+        .alert("Start workout?", isPresented: $showStartWorkoutConfirm) {
+            Button("Start") {
+                viewModel?.startActiveSession(context: modelContext)
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Your session timer will begin once you start.")
         }
     }
 
@@ -175,7 +184,7 @@ struct WorkoutBuilderView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Start") {
-                        viewModel.startActiveSession(context: modelContext)
+                        showStartWorkoutConfirm = true
                     }
                     .foregroundStyle(theme.colors.accentGreen)
                     .disabled(!viewModel.canStartSetup)
@@ -332,7 +341,7 @@ struct WorkoutBuilderView: View {
 
     private func startWorkoutButton(_ viewModel: WorkoutBuilderViewModel) -> some View {
         Button {
-            viewModel.startActiveSession(context: modelContext)
+            showStartWorkoutConfirm = true
         } label: {
             Text("Start Workout")
                 .font(.system(size: 17, weight: .semibold))
@@ -402,29 +411,32 @@ struct WorkoutBuilderView: View {
     }
 
     private func activeHeader(_ viewModel: WorkoutBuilderViewModel) -> some View {
-        HStack {
+        HStack(spacing: HabfitiseSpacing.md) {
             Text(viewModel.elapsedTimerString)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(theme.colors.accentGreen)
                 .monospacedDigit()
+                .frame(minWidth: 64, alignment: .leading)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             Text(viewModel.trimmedName.isEmpty ? "Workout" : viewModel.trimmedName)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(theme.colors.textPrimary)
                 .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             Button("End") {
                 viewModel.showEndConfirm = true
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(theme.colors.danger)
+            .frame(minWidth: 44, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, HabfitiseSpacing.xl)
         .padding(.vertical, 12)
+        .safeAreaPadding(.horizontal, HabfitiseSpacing.sm)
         .background(theme.colors.chipBackground)
     }
 

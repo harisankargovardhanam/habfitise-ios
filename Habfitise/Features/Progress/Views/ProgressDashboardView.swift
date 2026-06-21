@@ -82,6 +82,7 @@ struct ProgressContentView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: HabfitiseSpacing.lg) {
                 HabfitiseTabPageHeader(title: "Progress")
+                    .habfitiseStaggeredAppear(index: 0)
 
                 VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     if viewModel.workoutCount == 0 && sets.isEmpty {
@@ -90,6 +91,7 @@ struct ProgressContentView: View {
                             title: "No progress yet",
                             subtitle: "Start working out to see your progress"
                         )
+                        .habfitiseStaggeredAppear(index: 1)
                     } else {
                         progressSections
                     }
@@ -114,16 +116,20 @@ struct ProgressContentView: View {
     private var progressSections: some View {
         Group {
             WorkoutStreakCard(stats: WorkoutAnalytics.streakStats(userId: userId, context: modelContext))
+                .habfitiseStaggeredAppear(index: 1)
 
             ProgressStatSummaryCard(
                 workoutCount: viewModel.workoutCount,
                 habitRate: viewModel.habitCompletionRate,
                 tasksDone: viewModel.tasksCompleted
             )
+            .habfitiseStaggeredAppear(index: 2)
 
             ProgressWorkoutMinutesCard(weeklyMinutes: viewModel.weeklyWorkoutMinutes)
+                .habfitiseStaggeredAppear(index: 3)
 
             ProgressPersonalRecordsCard(records: viewModel.personalRecords)
+                .habfitiseStaggeredAppear(index: 4)
 
             if !bodyWeightEntries.isEmpty {
                 BodyWeightCard(
@@ -131,6 +137,7 @@ struct ProgressContentView: View {
                     targetWeightKg: profile?.targetWeightKg ?? 0,
                     startWeightKg: bodyWeightEntries.first?.weightKg
                 )
+                .habfitiseStaggeredAppear(index: 5)
             }
 
             ProgressHabitHeatmapCard(
@@ -138,14 +145,17 @@ struct ProgressContentView: View {
                 isPro: appState.isPro,
                 onUpgrade: { appState.requireUpgrade(for: .advancedAnalytics) }
             )
+            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 5 : 6)
 
             ProgressWaterWeekCard(
                 days: viewModel.waterWeekDays,
                 dailyAverage: viewModel.waterDailyAverage,
                 goalMl: viewModel.waterGoalML
             )
+            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 6 : 7)
 
             ProgressExportRow(exportURL: exportURL)
+                .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 7 : 8)
         }
     }
 

@@ -8,7 +8,7 @@ import UIKit
 @MainActor
 final class HomeViewModel {
     var selectedMood = 2
-    var displayName = "there"
+    var displayName = ""
     var memberSince = Date.now
     var isGeneratingPlan = false
     private(set) var hasLoadedWorkoutSection = false
@@ -39,8 +39,20 @@ final class HomeViewModel {
 
     private(set) var habitItems: [HomeHabitChipItem] = []
 
+    static let waterGlassCount = 8
+
     var filledWaterDrops: Int {
         min(6, waterTodayML / AppConstants.Water.dropLogML)
+    }
+
+    var filledWaterGlasses: Int {
+        guard waterGoalML > 0 else { return 0 }
+        return min(Self.waterGlassCount, (waterTodayML * Self.waterGlassCount) / waterGoalML)
+    }
+
+    var waterGlassVolumeML: Int {
+        guard waterGoalML > 0 else { return AppConstants.Water.cupSizeML }
+        return max(waterGoalML / Self.waterGlassCount, 1)
     }
 
     var waterFillProgress: Double {
@@ -66,7 +78,8 @@ final class HomeViewModel {
         context: ModelContext
     ) {
         if let profile {
-            displayName = profile.displayName.isEmpty ? "there" : profile.displayName
+            let trimmed = profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            displayName = trimmed
             memberSince = profile.createdAt
         }
 
@@ -112,13 +125,20 @@ final class HomeViewModel {
     }
 
     func logWaterDrop(userId: String, context: ModelContext) {
-        let amount = AppConstants.Water.dropLogML
-        let log = WaterLog(userId: userId, amountMl: amount, source: "home_drop", synced: false)
+        logWater(amountML: AppConstants.Water.dropLogML, userId: userId, context: context)
+    }
+
+    func logWaterGlass(userId: String, context: ModelContext) {
+        logWater(amountML: waterGlassVolumeML, userId: userId, context: context)
+    }
+
+    private func logWater(amountML: Int, userId: String, context: ModelContext) {
+        let log = WaterLog(userId: userId, amountMl: amountML, source: "home_glass", synced: false)
         context.insert(log)
         try? context.save()
 
         withAnimation(.spring(response: 0.2, dampingFraction: 0.65)) {
-            waterTodayML += amount
+            waterTodayML += amountML
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
@@ -303,6 +323,8 @@ final class HomeViewModel {
         case 12..<17: timeGreeting = "Good afternoon"
         default: timeGreeting = "Good evening"
         }
-        return "\(timeGreeting), \(name)"
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return timeGreeting }
+        return "\(timeGreeting), \(trimmed)"
     }
 }

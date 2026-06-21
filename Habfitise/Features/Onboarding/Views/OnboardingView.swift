@@ -34,12 +34,13 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            OnboardingAppIcon()
-
-            Text(AppConstants.appName)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundStyle(OnboardingPalette.textPrimary)
-                .padding(.top, 8)
+            HabfitiseLogoView(height: 44)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white)
+                )
 
             Text("Your workout, habits, and day — one app.")
                 .font(.system(size: 16, weight: .regular, design: .rounded))

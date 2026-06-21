@@ -156,6 +156,30 @@ final class HabitsViewModel {
         return nil
     }
 
+    func undoHabitToday(
+        _ habit: Habit,
+        completions: [HabitCompletion],
+        context: ModelContext
+    ) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return }
+
+        let todaysCompletions = completions.filter { completion in
+            completion.habitId == habit.id
+                && completion.completedDate >= today
+                && completion.completedDate < tomorrow
+        }
+
+        guard !todaysCompletions.isEmpty else { return }
+
+        for completion in todaysCompletions {
+            context.delete(completion)
+        }
+        try? context.save()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     func addWaterLog(amountMl: Int, userId: String, context: ModelContext) {
         let log = WaterLog(
             userId: userId,

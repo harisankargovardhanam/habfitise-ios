@@ -79,9 +79,34 @@ struct HabitsContentView: View {
     }
 
     var body: some View {
+        habitsScreenContent
+            .background(theme.colors.background.ignoresSafeArea())
+            .modifier(HabitsScreenChromeModifier(
+                showsBackButton: showsBackButton,
+                onAdd: { viewModel.showAddHabit = true }
+            ))
+            .onAppear {
+                tabBarState.resetScrollState()
+                syncViewModel()
+            }
+            .onChange(of: habits.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: weekCompletions.map(\.id)) { _, _ in syncViewModel() }
+            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in syncViewModel() }
+            .onChange(of: waterGoals.first?.dailyGoalMl) { _, _ in syncViewModel() }
+            .sheet(isPresented: $viewModel.showAddHabit) {
+                AddHabitSheet(userId: userId) {
+                    syncViewModel()
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+    }
+
+    private var habitsScreenContent: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: HabfitiseSpacing.lg) {
                 habitsHeader
+                    .habfitiseStaggeredAppear(index: 0)
 
                 LazyVStack(spacing: 12) {
                     if !viewModel.hasLoadedHabits {
@@ -111,6 +136,13 @@ struct HabitsContentView: View {
                                     ) != nil {
                                         HabfitiseHaptics.milestone()
                                     }
+                                },
+                                onUndo: {
+                                    viewModel.undoHabitToday(
+                                        habit,
+                                        completions: weekCompletions,
+                                        context: modelContext
+                                    )
                                 }
                             )
                         }
@@ -146,6 +178,7 @@ struct HabitsContentView: View {
                         viewModel.showAddHabit = true
                     }
                 }
+                .habfitiseStaggeredAppear(index: 1)
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }
             .padding(.bottom, TabBarLayout.floatingClearance)
@@ -154,32 +187,17 @@ struct HabitsContentView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
-        .background(theme.colors.background.ignoresSafeArea())
-        .habfitiseTabScreen(immersiveHeader: showsBackButton ? false : true)
-        .onAppear {
-            tabBarState.resetScrollState()
-            syncViewModel()
-        }
-        .onChange(of: habits.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: weekCompletions.map(\.id)) { _, _ in syncViewModel() }
-        .onChange(of: waterLogs.map(\.amountMl)) { _, _ in syncViewModel() }
-        .onChange(of: waterGoals.first?.dailyGoalMl) { _, _ in syncViewModel() }
-        .sheet(isPresented: $viewModel.showAddHabit) {
-            AddHabitSheet(userId: userId) {
-                syncViewModel()
-            }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-        }
     }
 
     // MARK: - Header
 
     private var habitsHeader: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            HabfitiseTabPageHeader(title: "Habits", showsBackButton: showsBackButton) {
-                HabitsAddButton {
-                    viewModel.showAddHabit = true
+            if !showsBackButton {
+                HabfitiseTabPageHeader(title: "Habits") {
+                    HabitsAddButton {
+                        viewModel.showAddHabit = true
+                    }
                 }
             }
 
@@ -240,6 +258,23 @@ struct HabitsContentView: View {
         let weekday = cal.component(.weekday, from: date)
         let daysFromMonday = (weekday + 5) % 7
         return cal.date(byAdding: .day, value: -daysFromMonday, to: cal.startOfDay(for: date)) ?? date
+    }
+}
+
+private struct HabitsScreenChromeModifier: ViewModifier {
+    let showsBackButton: Bool
+    let onAdd: () -> Void
+
+    func body(content: Content) -> some View {
+        if showsBackButton {
+            content
+                .habfitisePushedScreen(title: "Habits") {
+                    HabitsAddButton(action: onAdd)
+                }
+        } else {
+            content
+                .habfitiseTabScreen(immersiveHeader: true)
+        }
     }
 }
 
