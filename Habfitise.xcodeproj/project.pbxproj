@@ -27,6 +27,8 @@
 		22CFC4F6301D831664FABBA5 /* LocalSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E452D9C0CD580E8CE3396F36 /* LocalSessionService.swift */; };
 		239D6596246ED1FCE6837E19 /* WorkoutBuilderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597D6179C91395157F8D999 /* WorkoutBuilderViewModel.swift */; };
 		23F45031DF60ED9670B59902 /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B3503568E6402A0DCB0008 /* SyncService.swift */; };
+		24A56142EF71FE0781C6AA13 /* SyncPullMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B67253FA82EF1892D7BB24 /* SyncPullMapper.swift */; };
+		35B67253FA82EF1892D7BB245 /* CloudRestoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C78364AB93FA29A3E8CC356 /* CloudRestoreView.swift */; };
 		281FC2A700F6DD713A5FBCA9 /* HabfitiseSectionLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81EB6DBDCCD8FB1D8A4270E /* HabfitiseSectionLabel.swift */; };
 		2840D4132F55F773F0CC0871 /* WorkoutBuilderModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7538E84335670C81707A90 /* WorkoutBuilderModels.swift */; };
 		2EFBCD12CD46118657507D83 /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DF3444006F6B8CE5EBC86C /* SupabaseManager.swift */; };
@@ -173,6 +175,8 @@
 		5C11C5ACE5D2E2F3F2C6475E /* View+ConditionalModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+ConditionalModifier.swift"; sourceTree = "<group>"; };
 		635EDB5A8FCB64514E89BF64 /* TasksComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksComponents.swift; sourceTree = "<group>"; };
 		63B3503568E6402A0DCB0008 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
+		74B67253FA82EF1892D7BB24 /* SyncPullMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPullMapper.swift; sourceTree = "<group>"; };
+		46C78364AB93FA29A3E8CC356 /* CloudRestoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRestoreView.swift; sourceTree = "<group>"; };
 		642C51C5AB783D093436125F /* MissedWorkoutSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissedWorkoutSheet.swift; sourceTree = "<group>"; };
 		6450DC923ADDF851187E5B5B /* success.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = success.json; sourceTree = "<group>"; };
 		64B8541517BFC32B09C37992 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -321,6 +325,7 @@
 			isa = PBXGroup;
 			children = (
 				22727F795B46BB99306E0AE8 /* SyncDTOs.swift */,
+				74B67253FA82EF1892D7BB24 /* SyncPullMapper.swift */,
 				63B3503568E6402A0DCB0008 /* SyncService.swift */,
 			);
 			path = SyncService;
@@ -618,6 +623,7 @@
 		8EBD9CA4066A8F095384438D /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				46C78364AB93FA29A3E8CC356 /* CloudRestoreView.swift */,
 				33DF92307C1E306207170AF6 /* HabfitiseCapsuleBar.swift */,
 				1137CB9457B00B35A0BDE446 /* HabfitiseCard.swift */,
 				EB39E435D9A53C1675D1134B /* HabfitiseChip.swift */,
@@ -1030,7 +1036,9 @@
 				786A090C5BACDCB00DDFEF09 /* SwiftDataQueryExamples.swift in Sources */,
 				4A1C51D2504AC0C8C3E87AEE /* SwiftDataStack.swift in Sources */,
 				E4ADC74A97333061386833C7 /* SyncDTOs.swift in Sources */,
+				24A56142EF71FE0781C6AA13 /* SyncPullMapper.swift in Sources */,
 				23F45031DF60ED9670B59902 /* SyncService.swift in Sources */,
+				35B67253FA82EF1892D7BB245 /* CloudRestoreView.swift in Sources */,
 				38565EE1EA1C1042AAC7269C /* SyncStatusDot.swift in Sources */,
 				212346E9C495FF5A81584AB0 /* TabBarState.swift in Sources */,
 				7E6A63A93F8251133C47084B /* TasksComponents.swift in Sources */,

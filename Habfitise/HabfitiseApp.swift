@@ -45,16 +45,31 @@ struct HabfitiseApp: App {
                 .task {
                     await bootstrapServices()
                 }
-                .onChange(of: appState.authenticatedUserId) { _, userId in
-                    guard !AppConstants.Backend.useLocalOnly, let userId else { return }
+                .task(id: appState.authenticatedUserId) {
+                    guard !AppConstants.Backend.useLocalOnly,
+                          let userId = appState.authenticatedUserId else { return }
+
                     let context = SwiftDataStack.shared.mainContext
                     syncService.configure(modelContext: context) {
                         appState.authenticatedUserId
                     }
                     syncService.startNetworkMonitoring()
-                    Task {
-                        await syncService.syncAll(modelContext: context, userId: userId)
+
+                    let showRestoreUI = appState.isRestoringFromCloud
+                    await syncService.syncAll(
+                        modelContext: context,
+                        userId: userId,
+                        showProgress: showRestoreUI
+                    )
+
+                    if showRestoreUI {
+                        appState.finishCloudRestore(context: context)
                     }
+
+                    await NotificationService.shared.rescheduleAllReminders(
+                        userId: userId,
+                        context: context
+                    )
                 }
         }
     }

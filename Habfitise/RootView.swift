@@ -8,7 +8,7 @@ struct RootView: View {
     var body: some View {
         rootContent
             .animation(.spring(response: 0.45, dampingFraction: 0.85), value: appState.authState)
-            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: appState.needsOnboarding)
+            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: appState.isRestoringFromCloud)
             .sheet(item: upgradeBinding) { trigger in
                 UpgradeSheetView(trigger: trigger) {
                     appState.clearPendingNavigation()
@@ -30,7 +30,9 @@ struct RootView: View {
             }
 
         case .authenticated:
-            if appState.needsOnboarding {
+            if appState.isRestoringFromCloud {
+                CloudRestoreView()
+            } else if appState.needsOnboarding {
                 OnboardingView(skipWelcome: true)
             } else {
                 MainTabView()

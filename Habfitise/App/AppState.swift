@@ -8,13 +8,28 @@ final class AppState {
     var authState: AuthState = .loading
     var needsOnboarding = false
     var isPro = false
+    var isRestoringFromCloud = false
     var pendingNavigation: PendingNavigation = .none
     var pendingWorkoutBuilder: PendingWorkoutBuilder?
 
     func setAuthenticated(userId: String, context: ModelContext) {
         authState = .authenticated(userId: userId)
-        needsOnboarding = !Self.hasCompletedOnboarding(userId: userId, context: context)
-        pendingNavigation = needsOnboarding ? .onboarding : .home
+
+        if AppConstants.Backend.useLocalOnly {
+            refreshOnboardingState(userId: userId, context: context)
+        } else {
+            isRestoringFromCloud = true
+        }
+    }
+
+    func finishCloudRestore(context: ModelContext) {
+        guard let userId = authenticatedUserId else {
+            isRestoringFromCloud = false
+            return
+        }
+
+        isRestoringFromCloud = false
+        refreshOnboardingState(userId: userId, context: context)
     }
 
     func finishOnboarding() {
@@ -24,7 +39,6 @@ final class AppState {
             true,
             forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
         )
-        // Legacy device-wide flag — do not reuse for new accounts.
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding)
 
         needsOnboarding = false
@@ -34,8 +48,14 @@ final class AppState {
     func signOut() {
         authState = .unauthenticated
         needsOnboarding = false
+        isRestoringFromCloud = false
         isPro = false
         pendingNavigation = .auth
+    }
+
+    private func refreshOnboardingState(userId: String, context: ModelContext) {
+        needsOnboarding = !Self.hasCompletedOnboarding(userId: userId, context: context)
+        pendingNavigation = needsOnboarding ? .onboarding : .home
     }
 
     private static func hasCompletedOnboarding(userId: String, context: ModelContext) -> Bool {
@@ -45,7 +65,6 @@ final class AppState {
             return true
         }
 
-        // Existing profile for this account means onboarding already ran.
         if SwiftDataStack.shared.userProfileExists(userId: userId, context: context) {
             UserDefaults.standard.set(
                 true,
