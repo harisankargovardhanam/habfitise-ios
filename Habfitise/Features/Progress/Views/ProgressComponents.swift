@@ -29,7 +29,7 @@ struct ProgressStatSummaryCard: View {
             HStack(spacing: HabfitiseSpacing.lg) {
                 statBlock(value: "\(workoutCount)", title: "Workouts\nThis Month")
                 statBlock(value: "\(Int(habitRate * 100))%", title: "Habit Rate")
-                statBlock(value: "\(tasksDone)", title: "Tasks Done")
+                statBlock(value: "\(tasksDone)", title: "\(HabfitiseCopy.plural(tasksDone, "Task"))\nDone")
             }
         }
     }
@@ -54,6 +54,10 @@ struct ProgressWorkoutMinutesCard: View {
 
     private let labels = ["M", "T", "W", "T", "F", "S", "S"]
 
+    private var hasWorkoutMinutes: Bool {
+        weeklyMinutes.contains { $0 > 0 }
+    }
+
     var body: some View {
         ProgressDarkCard {
             VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
@@ -61,23 +65,37 @@ struct ProgressWorkoutMinutesCard: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(theme.colors.textPrimary)
 
-                HStack(alignment: .bottom, spacing: HabfitiseSpacing.md) {
-                    ForEach(Array(weeklyMinutes.enumerated()), id: \.offset) { index, minutes in
-                        VStack(spacing: HabfitiseSpacing.sm) {
-                            if minutes > 0 {
-                                HabfitiseCapsuleBar(value: minutes, maxValue: 90, color: theme.colors.accentGreen)
-                                    .frame(width: 24, height: 100)
-                            } else {
-                                Capsule()
-                                    .fill(theme.colors.chipBackground)
-                                    .frame(width: 24, height: 4)
-                            }
+                if !hasWorkoutMinutes {
+                    VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+                        Text("No workout time logged this week")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(theme.colors.textSecondary)
 
-                            Text(labels[index])
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(theme.colors.textSecondary)
+                        Text("Start a session from the Workout tab.")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(theme.colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, HabfitiseSpacing.sm)
+                } else {
+                    HStack(alignment: .bottom, spacing: HabfitiseSpacing.md) {
+                        ForEach(Array(weeklyMinutes.enumerated()), id: \.offset) { index, minutes in
+                            VStack(spacing: HabfitiseSpacing.sm) {
+                                if minutes > 0 {
+                                    HabfitiseCapsuleBar(value: minutes, maxValue: 90, color: theme.colors.accentGreen)
+                                        .frame(width: 24, height: 100)
+                                } else {
+                                    Capsule()
+                                        .fill(theme.colors.chipBackground)
+                                        .frame(width: 24, height: 4)
+                                }
+
+                                Text(labels[index])
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(theme.colors.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -233,6 +251,9 @@ struct ProgressHabitHeatmapCard: View {
                         .font(.system(size: 14, weight: .semibold))
                     Text("Pro")
                         .font(.system(size: 12, weight: .semibold))
+                    Text("30-day patterns")
+                        .font(.system(size: 10, weight: .medium))
+                        .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(theme.colors.textPrimary)
             }

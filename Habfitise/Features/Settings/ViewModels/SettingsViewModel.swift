@@ -5,9 +5,26 @@ import SwiftData
 @Observable
 @MainActor
 final class SettingsViewModel {
-    var notificationsEnabled = true
+    var notificationsEnabled = NotificationService.shared.isEnabled
     var healthKitConnected = false
     var isRestoringPurchases = false
+
+    func setNotificationsEnabled(_ enabled: Bool, userId: String?, context: ModelContext) {
+        notificationsEnabled = enabled
+        NotificationService.shared.isEnabled = enabled
+
+        Task {
+            if enabled, let userId {
+                _ = await NotificationService.shared.ensureAuthorization()
+                await NotificationService.shared.rescheduleAllReminders(
+                    userId: userId,
+                    context: context
+                )
+            } else {
+                NotificationService.shared.cancelAllPendingReminders()
+            }
+        }
+    }
 
     func connectHealthKit(appState: AppState) async {
         guard appState.isPro else {
@@ -37,6 +54,7 @@ final class SettingsViewModel {
     }
 
     func signOut(appState: AppState) async {
+        NotificationService.shared.resetAllReminders()
         if AppConstants.Backend.useLocalOnly {
             LocalSessionService.clearSession()
         } else {
@@ -46,6 +64,7 @@ final class SettingsViewModel {
     }
 
     func deleteAccount(userId: String, appState: AppState, context: ModelContext) async {
+        NotificationService.shared.resetAllReminders()
         try? SwiftDataStack.shared.deleteAllData(for: userId, context: context)
 
         if AppConstants.Backend.useLocalOnly {

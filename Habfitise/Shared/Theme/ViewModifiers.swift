@@ -98,15 +98,18 @@ struct HabfitiseTabPageHeader<Trailing: View>: View {
 
     let title: String
     var showsBackButton: Bool
+    var appliesTopSafeArea: Bool
     @ViewBuilder let trailing: () -> Trailing
 
     init(
         title: String,
         showsBackButton: Bool = false,
+        appliesTopSafeArea: Bool = true,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
     ) {
         self.title = title
         self.showsBackButton = showsBackButton
+        self.appliesTopSafeArea = appliesTopSafeArea
         self.trailing = trailing
     }
 
@@ -134,8 +137,20 @@ struct HabfitiseTabPageHeader<Trailing: View>: View {
             }
         }
         .padding(.horizontal, HabfitiseSpacing.lg)
-        .safeAreaPadding(.top, HabfitiseSpacing.sm)
+        .modifier(TopSafeAreaPaddingModifier(enabled: appliesTopSafeArea))
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct TopSafeAreaPaddingModifier: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.safeAreaPadding(.top, HabfitiseSpacing.sm)
+        } else {
+            content
+        }
     }
 }
 
@@ -186,9 +201,26 @@ struct HabfitiseChipStyle: ViewModifier {
     }
 }
 
+// MARK: - Full-screen bounds
+
+/// Keeps full-screen modal content within the visible screen width.
+/// Prevents wide ScrollView children from expanding headers and toolbars off-screen.
+private struct FullScreenWidthBoundsModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        GeometryReader { proxy in
+            content
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+        }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
+    func fullScreenWidthBounds() -> some View {
+        modifier(FullScreenWidthBoundsModifier())
+    }
+
     func habfitiseCard() -> some View {
         modifier(HabfitiseCardModifier())
     }

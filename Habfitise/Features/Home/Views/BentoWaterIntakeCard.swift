@@ -10,11 +10,18 @@ struct BentoWaterIntakeCard: View {
     let onLogGlass: () -> Void
 
     @Environment(ThemeManager.self) private var theme
+    @State private var animatedBottleLevel: Double = 1
     @State private var animatedProgress: Double = 0
 
     private var progress: Double {
         guard goalML > 0 else { return 0 }
         return min(Double(currentML) / Double(goalML), 1)
+    }
+
+    /// Bottle drains as you drink toward your daily goal.
+    private var bottleLevel: Double {
+        guard goalML > 0 else { return 1 }
+        return max(0, 1 - progress)
     }
 
     private var percent: Int {
@@ -29,7 +36,7 @@ struct BentoWaterIntakeCard: View {
         BentoCardContainer(title: "Water", accent: .water) {
             VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
                 HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
-                    WaterBottleView(progress: animatedProgress)
+                    WaterBottleView(level: animatedBottleLevel)
                         .frame(width: 56, height: 96)
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -96,14 +103,10 @@ struct BentoWaterIntakeCard: View {
                     HStack(spacing: 6) {
                         ForEach(0..<glassCount, id: \.self) { index in
                             Button(action: onLogGlass) {
-                                Image(systemName: "drop.fill")
-                                    .font(.system(size: 16))
-                                    .symbolRenderingMode(.hierarchical)
-                                    .foregroundStyle(
-                                        index < filledGlasses
-                                            ? theme.colors.waterBlue
-                                            : theme.colors.trackBackground
-                                    )
+                                WaterGlassIcon(
+                                    isFilled: index < filledGlasses,
+                                    size: 16
+                                )
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 22)
                             }
@@ -115,7 +118,13 @@ struct BentoWaterIntakeCard: View {
         }
         .onAppear {
             withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
+                animatedBottleLevel = bottleLevel
                 animatedProgress = progress
+            }
+        }
+        .onChange(of: bottleLevel) { _, newValue in
+            withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
+                animatedBottleLevel = newValue
             }
         }
         .onChange(of: progress) { _, newValue in
@@ -129,32 +138,36 @@ struct BentoWaterIntakeCard: View {
 // MARK: - Bottle visual
 
 private struct WaterBottleView: View {
-    let progress: Double
+    let level: Double
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
         let bottle = WaterBottleOutlineShape()
 
-        ZStack {
-            bottle
-                .fill(theme.colors.trackBackground.opacity(0.22))
+        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            let phase = timeline.date.timeIntervalSinceReferenceDate * 2.2
 
-            bottle
-                .stroke(theme.colors.trackBackground, lineWidth: 1.5)
+            ZStack {
+                bottle
+                    .fill(theme.colors.trackBackground.opacity(0.22))
 
-            WaveWaterFill(progress: progress)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            theme.colors.waterBlue.opacity(0.7),
-                            theme.colors.waterBlue
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
+                bottle
+                    .stroke(theme.colors.trackBackground, lineWidth: 1.5)
+
+                WaveWaterFill(level: level, wavePhase: phase)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                theme.colors.waterBlue.opacity(0.65),
+                                theme.colors.waterBlue
+                            ],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
                     )
-                )
-                .mask(bottle)
+                    .mask(bottle)
+            }
         }
     }
 }
@@ -210,29 +223,35 @@ private struct WaterBottleOutlineShape: Shape {
 }
 
 private struct WaveWaterFill: Shape {
-    var progress: Double
+    var level: Double
+    var wavePhase: Double
 
-    var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(level, wavePhase) }
+        set {
+            level = newValue.first
+            wavePhase = newValue.second
+        }
     }
 
     func path(in rect: CGRect) -> Path {
-        guard progress > 0.01 else { return Path() }
+        guard level > 0.01 else { return Path() }
 
-        let fillHeight = rect.height * CGFloat(progress)
+        let fillHeight = rect.height * CGFloat(level)
         let baseY = rect.height - fillHeight
-        let waveAmplitude = min(4, max(2, fillHeight * 0.08))
+        let waveAmplitude = min(5, max(2.5, fillHeight * 0.1))
 
         var path = Path()
         path.move(to: CGPoint(x: 0, y: rect.height))
         path.addLine(to: CGPoint(x: 0, y: baseY))
 
-        let steps = max(Int(rect.width / 2), 8)
+        let steps = max(Int(rect.width / 2), 12)
         for step in 0...steps {
             let x = rect.width * CGFloat(step) / CGFloat(steps)
-            let phase = CGFloat(step) / CGFloat(steps) * .pi * 2
-            let y = baseY + sin(phase) * waveAmplitude
+            let normalized = CGFloat(step) / CGFloat(steps)
+            let primary = sin((normalized * .pi * 2) + CGFloat(wavePhase))
+            let secondary = sin((normalized * .pi * 4) + CGFloat(wavePhase * 1.4)) * 0.35
+            let y = baseY + (primary + secondary) * waveAmplitude
             path.addLine(to: CGPoint(x: x, y: y))
         }
 

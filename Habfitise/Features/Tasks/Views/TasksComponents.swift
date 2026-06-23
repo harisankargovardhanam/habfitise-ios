@@ -6,6 +6,7 @@ import UIKit
 struct TaskRow: View {
     @Environment(ThemeManager.self) private var theme
     let task: TaskRecord
+    var showsDueChip = true
     let onToggle: () -> Void
     let onDelete: () -> Void
     let onReschedule: () -> Void
@@ -13,48 +14,42 @@ struct TaskRow: View {
     @State private var checkTrim: CGFloat = 0
     @State private var isCheckedVisual = false
     @State private var flashBackground = false
-    @State private var strikeProgress: CGFloat = 0
     @State private var titleMuted = false
 
     var body: some View {
-        HStack(spacing: HabfitiseSpacing.md) {
+        HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
             TaskCheckCircle(
                 isComplete: isCheckedVisual,
                 trimProgress: checkTrim,
                 onTap: handleToggle
             )
+            .frame(width: 28, height: 28)
 
             Text(task.title)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(size: 16, weight: .medium, design: .rounded))
                 .foregroundStyle(titleMuted ? theme.colors.textTertiary : theme.colors.textPrimary)
+                .strikethrough(isCheckedVisual, color: theme.colors.textTertiary)
                 .lineLimit(2)
-                .overlay(alignment: .leading) {
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(theme.colors.textTertiary)
-                            .frame(width: geometry.size.width * strikeProgress, height: 1)
-                            .offset(y: geometry.size.height / 2)
-                    }
-                }
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.2), value: titleMuted)
 
-            Spacer(minLength: HabfitiseSpacing.sm)
-
-            TaskDueChip(dueDate: task.dueDate, isComplete: isCheckedVisual)
+            if showsDueChip {
+                TaskDueChip(dueDate: task.dueDate, isComplete: isCheckedVisual)
+            }
         }
-        .padding(HabfitiseSpacing.lg)
+        .frame(height: 56)
+        .padding(.horizontal, HabfitiseSpacing.lg)
         .background(flashBackground ? theme.colors.chipDone : Color.clear)
         .animation(.easeOut(duration: 0.4), value: flashBackground)
         .contentShape(Rectangle())
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+        .contextMenu {
             Button {
                 onReschedule()
             } label: {
                 Label("Reschedule", systemImage: "calendar")
             }
-            .tint(theme.colors.waterBlue)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+
             Button(role: .destructive) {
                 onDelete()
             } label: {
@@ -98,10 +93,6 @@ struct TaskRow: View {
             }
         }
 
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
-            strikeProgress = 1
-        }
-
         withAnimation(.easeOut(duration: 0.2)) {
             titleMuted = true
         }
@@ -116,7 +107,6 @@ struct TaskRow: View {
 
         isCheckedVisual = complete
         checkTrim = complete ? 1 : 0
-        strikeProgress = complete ? 1 : 0
         titleMuted = complete
         flashBackground = false
     }
@@ -218,6 +208,7 @@ struct TasksHeaderChipRow: View {
 
 // MARK: - FAB
 
+/// Legacy floating add button — prefer `HabitsAddButton` in the tab header.
 struct TasksFAB: View {
     @Environment(ThemeManager.self) private var theme
     let pulse: Bool

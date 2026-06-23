@@ -18,7 +18,15 @@ final class AppState {
     }
 
     func finishOnboarding() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding)
+        guard let userId = authenticatedUserId else { return }
+
+        UserDefaults.standard.set(
+            true,
+            forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
+        )
+        // Legacy device-wide flag — do not reuse for new accounts.
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding)
+
         needsOnboarding = false
         pendingNavigation = .home
     }
@@ -31,14 +39,21 @@ final class AppState {
     }
 
     private static func hasCompletedOnboarding(userId: String, context: ModelContext) -> Bool {
-        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding) {
+        if UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
+        ) {
             return true
         }
-        // Migrate existing users who completed onboarding before the flag existed.
+
+        // Existing profile for this account means onboarding already ran.
         if SwiftDataStack.shared.userProfileExists(userId: userId, context: context) {
-            UserDefaults.standard.set(true, forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding)
+            UserDefaults.standard.set(
+                true,
+                forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
+            )
             return true
         }
+
         return false
     }
 

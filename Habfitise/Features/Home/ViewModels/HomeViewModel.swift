@@ -141,6 +141,9 @@ final class HomeViewModel {
             waterTodayML += amountML
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task {
+            await NotificationService.shared.rescheduleWaterReminders(userId: userId, context: context)
+        }
     }
 
     func generateDailyPlan(appState: AppState) async {

@@ -10,6 +10,7 @@ struct HabitCard: View {
     let isCompletedToday: Bool
     let onComplete: () -> Void
     let onUndo: () -> Void
+    let onDelete: () -> Void
 
     @State private var todaySquareScale: CGFloat = 1
     @State private var displayStreak: Int
@@ -23,7 +24,8 @@ struct HabitCard: View {
         streak: Int,
         isCompletedToday: Bool,
         onComplete: @escaping () -> Void,
-        onUndo: @escaping () -> Void = {}
+        onUndo: @escaping () -> Void = {},
+        onDelete: @escaping () -> Void = {}
     ) {
         self.habit = habit
         self.days = days
@@ -31,6 +33,7 @@ struct HabitCard: View {
         self.isCompletedToday = isCompletedToday
         self.onComplete = onComplete
         self.onUndo = onUndo
+        self.onDelete = onDelete
         _displayStreak = State(initialValue: streak)
         _buttonDone = State(initialValue: isCompletedToday)
     }
@@ -87,6 +90,16 @@ struct HabitCard: View {
                 .lineLimit(1)
 
             Spacer()
+
+            Menu {
+                Button("Delete habit", role: .destructive, action: onDelete)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
 
             Circle()
                 .fill(theme.colors.percentageOrange)
@@ -370,9 +383,7 @@ struct WaterIntakeCard: View {
 
     private var headerRow: some View {
         HStack(spacing: HabfitiseSpacing.sm) {
-            Image(systemName: "drop.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(theme.colors.waterBlue)
+            WaterGlassIcon(isFilled: true, size: 14, filledColor: theme.colors.waterBlue)
 
             Text("Water intake")
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -448,10 +459,7 @@ struct HabitsWaterDropButton: View {
 
     var body: some View {
         Button(action: handleTap) {
-            Image(systemName: "drop.fill")
-                .font(.system(size: 28))
-                .foregroundStyle(isFilled ? theme.colors.waterBlue : theme.colors.trackBackground)
-                .frame(width: 28, height: 28)
+            WaterGlassIcon(isFilled: isFilled, size: 28)
                 .scaleEffect(bounceScale)
         }
         .buttonStyle(.plain)

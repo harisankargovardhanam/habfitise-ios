@@ -54,7 +54,16 @@ enum ProgressAnalytics {
         let calendar = Calendar.current
         guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: .now)?.start else { return [] }
 
-        return records.prefix(5).map { record in
+        let bestPerExercise = Dictionary(grouping: records, by: \.exerciseName)
+            .compactMap { _, group -> PersonalRecord? in
+                group.max { lhs, rhs in
+                    if lhs.value != rhs.value { return lhs.value < rhs.value }
+                    return lhs.achievedAt < rhs.achievedAt
+                }
+            }
+            .sorted { $0.achievedAt > $1.achievedAt }
+
+        return bestPerExercise.prefix(5).map { record in
             let isNewThisWeek = record.achievedAt >= weekStart
             let (weightKg, reps, valueLabel) = displayValues(for: record)
             return ProgressPersonalRecord(

@@ -26,7 +26,17 @@ struct HabfitiseApp: App {
                 .onOpenURL { url in
                     guard !AppConstants.Backend.useLocalOnly else { return }
                     Task {
-                        try? await SupabaseManager.shared.handleDeepLink(url)
+                        do {
+                            try await SupabaseManager.shared.handleDeepLink(url)
+                            if let session = await SupabaseManager.shared.currentSession() {
+                                appState.setAuthenticated(
+                                    userId: session.user.id.uuidString,
+                                    context: SwiftDataStack.shared.mainContext
+                                )
+                            }
+                        } catch {
+                            appState.setAuthError(error.localizedDescription)
+                        }
                     }
                 }
                 .task {
@@ -34,6 +44,17 @@ struct HabfitiseApp: App {
                 }
                 .task {
                     await bootstrapServices()
+                }
+                .onChange(of: appState.authenticatedUserId) { _, userId in
+                    guard !AppConstants.Backend.useLocalOnly, let userId else { return }
+                    let context = SwiftDataStack.shared.mainContext
+                    syncService.configure(modelContext: context) {
+                        appState.authenticatedUserId
+                    }
+                    syncService.startNetworkMonitoring()
+                    Task {
+                        await syncService.syncAll(modelContext: context, userId: userId)
+                    }
                 }
         }
     }
@@ -99,19 +120,18 @@ struct HabfitiseApp: App {
 
         // Local notifications only. Remote push (FCM) deferred — see Config/DEFERRED.md
         _ = try? await NotificationService.shared.requestAuthorization()
-        await rescheduleWorkoutReminders()
-    }
-
-    @MainActor
-    private func rescheduleWorkoutReminders() async {
-        guard let userId = appState.authenticatedUserId else { return }
-        let userIdConst = userId
-        let descriptor = FetchDescriptor<WorkoutTemplate>(
-            predicate: #Predicate { $0.userId == userIdConst && $0.nextScheduledAt != nil }
+        let context = SwiftDataStack.shared.mainContext
+        await NotificationService.shared.pruneStaleWaterReminders(
+            activeUserId: appState.authenticatedUserId,
+            context: context
         )
-        let templates = (try? SwiftDataStack.shared.mainContext.fetch(descriptor)) ?? []
-        for template in templates {
-            await NotificationService.shared.scheduleWorkoutReminder(template: template)
+        if let userId = appState.authenticatedUserId {
+            await NotificationService.shared.rescheduleAllReminders(
+                userId: userId,
+                context: context
+            )
+        } else {
+            NotificationService.shared.resetAllReminders()
         }
     }
 }

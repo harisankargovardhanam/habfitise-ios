@@ -79,11 +79,11 @@ struct ProgressContentView: View {
     private var profile: UserProfile? { profiles.first }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: HabfitiseSpacing.lg) {
-                HabfitiseTabPageHeader(title: "Progress")
-                    .habfitiseStaggeredAppear(index: 0)
+        VStack(spacing: 0) {
+            HabfitiseTabPageHeader(title: "Progress")
+                .habfitiseStaggeredAppear(index: 0)
 
+            ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                     if viewModel.workoutCount == 0 && sets.isEmpty {
                         HabfitiseEmptyState(
@@ -97,13 +97,15 @@ struct ProgressContentView: View {
                     }
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
+                .padding(.top, HabfitiseSpacing.sm)
+                .padding(.bottom, TabBarLayout.tabBarScrollInset)
+                .reportScrollOffsetToTabBar()
             }
-            .padding(.bottom, TabBarLayout.floatingClearance)
-            .reportScrollOffsetToTabBar()
+            .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
+            .scrollIndicators(.hidden)
+            .scrollContentBackground(.hidden)
+            .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
         }
-        .scrollIndicators(.hidden)
-        .scrollContentBackground(.hidden)
-        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
         .background(theme.colors.background.ignoresSafeArea())
         .habfitiseTabScreen(immersiveHeader: true)
         .onAppear(perform: syncViewModel)

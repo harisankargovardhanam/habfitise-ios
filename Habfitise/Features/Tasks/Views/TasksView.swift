@@ -93,32 +93,35 @@ struct TasksContentView: View {
     }
 
     private var tasksScreenContent: some View {
-        ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
                 tasksHeader
                     .habfitiseStaggeredAppear(index: 0)
 
                 if tasks.isEmpty {
-                    emptyState
+                    emptyStateContent
                         .habfitiseStaggeredAppear(index: 1)
                 } else {
-                    taskList
+                    taskListContent
                         .habfitiseStaggeredAppear(index: 1)
                 }
             }
-
-            TasksFAB(pulse: viewModel.totalOpenTasks > 0) {
-                viewModel.showAddTask = true
-            }
-            .padding(.trailing, HabfitiseSpacing.lg)
-            .padding(.bottom, TabBarLayout.floatingClearance)
+            .padding(.bottom, TabBarLayout.tabBarScrollInset)
+            .reportScrollOffsetToTabBar()
         }
+        .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
+        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
     }
 
     private var tasksHeader: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
             if !showsBackButton {
-                HabfitiseTabPageHeader(title: "Tasks")
+                HabfitiseTabPageHeader(title: "Tasks") {
+                    HabitsAddButton {
+                        viewModel.showAddTask = true
+                    }
+                }
             }
 
             TasksHeaderChipRow(
@@ -127,63 +130,109 @@ struct TasksContentView: View {
             )
             .padding(.horizontal, HabfitiseSpacing.lg)
         }
-        .padding(.bottom, HabfitiseSpacing.md)
     }
 
-    private var emptyState: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-                HabfitiseSectionLabel(text: "Today")
-                Text("No tasks yet")
-                    .font(HabfitiseTypography.subheadline)
-                    .foregroundStyle(theme.colors.textSecondary)
+    private var emptyStateContent: some View {
+        VStack(spacing: HabfitiseSpacing.lg) {
+            HabfitiseEmptyState(
+                icon: "checklist",
+                title: "No tasks yet",
+                subtitle: "Capture what you need to do today and stay on track."
+            )
+
+            Button {
+                viewModel.showAddTask = true
+            } label: {
+                Text("Add your first task")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(theme.colors.textOnBackground)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(theme.colors.accentGreen)
+                    )
             }
-            .padding(.horizontal, HabfitiseSpacing.lg)
-            .padding(.top, HabfitiseSpacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+            .padding(.horizontal, HabfitiseSpacing.xxxl)
         }
-        .scrollIndicators(.hidden)
-        .reportScrollOffsetToTabBar()
-        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .padding(.horizontal, HabfitiseSpacing.lg)
+        .padding(.top, HabfitiseSpacing.xl)
+        .frame(maxWidth: .infinity)
     }
 
-    private var taskList: some View {
-        List {
+    private var taskListContent: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(TaskSection.allCases) { section in
-                let sectionTasks = viewModel.tasks(for: section)
+                let sectionTasks = viewModel.openTasks(for: section)
                 if !sectionTasks.isEmpty {
-                    Section {
-                        ForEach(Array(sectionTasks.enumerated()), id: \.element.id) { index, task in
-                            TaskRow(
-                                task: task,
-                                onToggle: {
-                                    viewModel.completeTask(task, context: modelContext)
-                                },
-                                onDelete: {
-                                    viewModel.requestDelete(task)
-                                },
-                                onReschedule: {
-                                    viewModel.requestReschedule(task)
-                                }
-                            )
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(index == sectionTasks.count - 1 ? .hidden : .visible, edges: .bottom)
-                            .listRowSeparatorTint(theme.colors.trackBackground)
-                            .listRowBackground(Color.clear)
+                    taskSectionLabel(section.title, isFirst: section == .today)
+
+                    ForEach(Array(sectionTasks.enumerated()), id: \.element.id) { index, task in
+                        TaskRow(
+                            task: task,
+                            showsDueChip: section != .today,
+                            onToggle: {
+                                viewModel.completeTask(task, context: modelContext)
+                            },
+                            onDelete: {
+                                viewModel.requestDelete(task)
+                            },
+                            onReschedule: {
+                                viewModel.requestReschedule(task)
+                            }
+                        )
+
+                        if index < sectionTasks.count - 1 {
+                            taskRowDivider
                         }
-                    } header: {
-                        HabfitiseSectionLabel(text: section.title)
-                            .textCase(nil)
-                            .padding(.top, section == .today ? HabfitiseSpacing.sm : HabfitiseSpacing.lg)
+                    }
+                }
+            }
+
+            if !viewModel.completedTasks.isEmpty {
+                let noOpenTasks = TaskSection.allCases.allSatisfy {
+                    viewModel.openTasks(for: $0).isEmpty
+                }
+                taskSectionLabel("Done", isFirst: noOpenTasks)
+
+                ForEach(Array(viewModel.completedTasks.enumerated()), id: \.element.id) { index, task in
+                    TaskRow(
+                        task: task,
+                        showsDueChip: false,
+                        onToggle: {},
+                        onDelete: {
+                            viewModel.requestDelete(task)
+                        },
+                        onReschedule: {
+                            viewModel.requestReschedule(task)
+                        }
+                    )
+
+                    if index < viewModel.completedTasks.count - 1 {
+                        taskRowDivider
                     }
                 }
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .scrollIndicators(.hidden)
-        .reportScrollOffsetToTabBar()
-        .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+    }
+
+    private var taskRowDivider: some View {
+        Rectangle()
+            .fill(theme.colors.trackBackground)
+            .frame(height: 1)
+            .padding(.leading, HabfitiseSpacing.lg + 28 + HabfitiseSpacing.md)
+    }
+
+    private func taskSectionLabel(_ title: String, isFirst: Bool) -> some View {
+        Text(title.uppercased())
+            .font(HabfitiseTypography.sectionLabel)
+            .tracking(1.2)
+            .foregroundStyle(theme.colors.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, HabfitiseSpacing.lg)
+            .padding(.top, isFirst ? 0 : HabfitiseSpacing.lg)
+            .padding(.bottom, HabfitiseSpacing.xs)
     }
 
     private func syncViewModel() {

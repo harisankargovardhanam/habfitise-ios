@@ -23,13 +23,24 @@ final class SupabaseManager {
             let anonKey = Bundle.main.object(forInfoDictionaryKey: AppConstants.Supabase.anonKeyKey) as? String,
             !urlString.isEmpty,
             !anonKey.isEmpty,
+            !urlString.contains("your-project"),
+            !anonKey.contains("your-anon-key"),
             let url = URL(string: urlString)
         else {
             client = nil
             return
         }
 
-        client = SupabaseClient(supabaseURL: url, supabaseKey: anonKey)
+        client = SupabaseClient(
+            supabaseURL: url,
+            supabaseKey: anonKey,
+            options: SupabaseClientOptions(
+                auth: SupabaseClientOptions.AuthOptions(
+                    redirectToURL: AppConstants.Auth.oauthRedirectURL,
+                    emitLocalSessionAsInitialSession: true
+                )
+            )
+        )
         Task { await refreshSession() }
     }
 
@@ -116,13 +127,14 @@ final class SupabaseManager {
 
     // MARK: - Apple
 
-    func signInWithApple(idToken: String, fullName: String?) async throws {
+    func signInWithApple(idToken: String, fullName: String?, nonce: String?) async throws {
         guard let client else { throw SupabaseManagerError.notConfigured }
 
         let session = try await client.auth.signInWithIdToken(
             credentials: OpenIDConnectCredentials(
                 provider: .apple,
-                idToken: idToken
+                idToken: idToken,
+                nonce: nonce
             )
         )
         cachedSession = session
@@ -136,20 +148,14 @@ final class SupabaseManager {
 
     // MARK: - Google (OAuth)
 
-    func signInWithGoogle(
-        launchFlow: @MainActor @Sendable (URL) async throws -> URL
-    ) async throws {
+    func signInWithGoogle() async throws {
         guard let client else { throw SupabaseManagerError.notConfigured }
 
         let session = try await client.auth.signInWithOAuth(
             provider: .google,
-            redirectTo: AppConstants.Auth.oauthRedirectURL,
-            launchFlow: launchFlow
+            redirectTo: AppConstants.Auth.oauthRedirectURL
         )
         cachedSession = session
-        if session == nil {
-            await refreshSession()
-        }
     }
 
     // MARK: - Sign Out
@@ -162,8 +168,8 @@ final class SupabaseManager {
 
     func handleDeepLink(_ url: URL) async throws {
         guard let client else { throw SupabaseManagerError.notConfigured }
-        try await client.auth.session(from: url)
-        await refreshSession()
+        let session = try await client.auth.session(from: url)
+        cachedSession = session
     }
 }
 
@@ -175,7 +181,7 @@ enum SupabaseManagerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            "Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY."
+            "Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to Config/Secrets.xcconfig."
         case .missingIdentityToken:
             "Apple Sign In did not return a valid identity token."
         case .invalidAppleCredential:

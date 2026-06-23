@@ -54,6 +54,14 @@ struct WorkoutCompletePR: Identifiable, Equatable {
     }
 }
 
+extension Array where Element == WorkoutCompletePR {
+    /// Keeps the first PR per exercise — avoids duplicate cards on session complete.
+    func dedupedByExercise() -> [WorkoutCompletePR] {
+        var seen = Set<String>()
+        return filter { seen.insert($0.exerciseName).inserted }
+    }
+}
+
 struct WorkoutCompletePayload: Equatable {
     let workoutName: String
     let workoutType: WorkoutType

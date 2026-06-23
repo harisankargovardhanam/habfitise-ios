@@ -20,17 +20,6 @@ enum OnboardingPalette {
     static let summaryBackground = Color(hex: "#22C55E").opacity(0.1)
     static let summaryRate = Color(hex: "#22C55E").opacity(0.7)
     static let weekdayUnselected = Color(hex: "#2A2A2A")
-    static let watermark = Color.white.opacity(0.05)
-}
-
-struct OnboardingWatermark: View {
-    var body: some View {
-        Text("HF")
-            .font(.system(size: 120, weight: .black, design: .rounded))
-            .foregroundStyle(OnboardingPalette.watermark)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
 }
 
 // MARK: - Onboarding Card Shell
@@ -94,6 +83,32 @@ struct OnboardingContinueButton: View {
         .buttonStyle(HabfitiseScalePressButtonStyle(hapticOnPress: true))
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.6)
+    }
+}
+
+// MARK: - Name Field
+
+struct OnboardingNameField: View {
+    @Binding var name: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Your name")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(OnboardingPalette.textSecondary)
+
+            TextField("What should we call you?", text: $name)
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(OnboardingPalette.textPrimary)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 16)
+                .frame(height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(OnboardingPalette.stepperBackground)
+                )
+        }
     }
 }
 
@@ -265,9 +280,11 @@ struct OnboardingGoalSummaryCard: View {
             Text(summary.headline)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(OnboardingPalette.accent)
-            Text(summary.monthlyRate)
-                .font(.system(size: 13, weight: .regular, design: .rounded))
-                .foregroundStyle(OnboardingPalette.summaryRate)
+            if let detail = summary.detail {
+                Text(detail)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(OnboardingPalette.summaryRate)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)

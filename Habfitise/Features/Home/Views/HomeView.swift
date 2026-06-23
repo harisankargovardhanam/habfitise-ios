@@ -191,7 +191,6 @@ struct HomeContentView: View {
             bentoWaterCell
             bentoHabitsCell
             bentoTasksCell
-            bentoStreakCell
             bentoWeightCell
             bentoEnergyCell
         }
@@ -295,20 +294,26 @@ struct HomeContentView: View {
             action: openTasks
         ) {
             if viewModel.taskItems.isEmpty {
-                HStack(spacing: BentoCardStyle.compactContentSpacing) {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
                     Text("Nothing due")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(themeManager.colors.textPrimary)
+
+                    Text("Add a task to keep today on track.")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(themeManager.colors.textSecondary)
-
-                    Spacer(minLength: 0)
 
                     Button {
                         showAddTask = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(BentoCardAccent.tasks.focalColor(in: themeManager.colors))
+                        Text("Add task")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(themeManager.colors.textOnBackground)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule().fill(themeManager.colors.accentGreen)
+                            )
                     }
                     .buttonStyle(.plain)
                 }
@@ -341,45 +346,13 @@ struct HomeContentView: View {
         )
     }
 
-    private var bentoStreakCell: some View {
-        BentoCardContainer(title: "Streak", accent: .streak) {
-            HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
-                BentoWeeklyRing(
-                    workoutsThisWeek: viewModel.streakStats.weeklyCompleted,
-                    total: viewModel.streakStats.weeklyTotal
-                )
-
-                HStack(spacing: HabfitiseSpacing.lg) {
-                    bentoHorizontalStat(
-                        value: "\(viewModel.streakStats.dayStreak)",
-                        label: "Day streak",
-                        accent: BentoCardAccent.streak.focalColor(in: themeManager.colors)
-                    )
-
-                    bentoHorizontalStat(
-                        value: "\(viewModel.streakStats.sessionsLogged)",
-                        label: "Sessions",
-                        accent: themeManager.colors.textPrimary
-                    )
-
-                    bentoHorizontalStat(
-                        value: "\(viewModel.streakStats.habitsDone)",
-                        label: "Habits",
-                        accent: themeManager.colors.accentGreen
-                    )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
     private var bentoWeightCell: some View {
         BentoCardContainer(title: "Weight", accent: .bodyWeight) {
             HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
                 ZStack {
                     Circle()
                         .fill(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors).opacity(0.14))
-                    Image(systemName: "scalemass.fill")
+                    Image(systemName: "scalemass")
                         .font(.system(size: 24, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors))
@@ -439,22 +412,6 @@ struct HomeContentView: View {
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(themeManager.colors.textSecondary)
         }
-    }
-
-    private func bentoHorizontalStat(value: String, label: String, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            Text(label)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(themeManager.colors.textSecondary)
-                .lineLimit(1)
-        }
-        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

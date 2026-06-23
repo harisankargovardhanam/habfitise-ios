@@ -15,11 +15,19 @@ enum BentoDashboardTheme {
 }
 
 enum BentoMetricsPeriod: String, CaseIterable, Identifiable {
-    case day = "D"
-    case week = "W"
-    case month = "M"
+    case day
+    case week
+    case month
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .day: "Day"
+        case .week: "Week"
+        case .month: "Month"
+        }
+    }
 }
 
 struct BentoActivityBar: Identifiable {

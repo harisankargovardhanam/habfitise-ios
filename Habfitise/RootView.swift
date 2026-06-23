@@ -23,11 +23,15 @@ struct RootView: View {
             loadingView
 
         case .unauthenticated, .error:
-            AuthView()
+            if AppConstants.Backend.useLocalOnly {
+                OnboardingView()
+            } else {
+                AuthView()
+            }
 
         case .authenticated:
             if appState.needsOnboarding {
-                OnboardingView()
+                OnboardingView(skipWelcome: true)
             } else {
                 MainTabView()
             }
@@ -35,13 +39,7 @@ struct RootView: View {
     }
 
     private var loadingView: some View {
-        ZStack {
-            themeManager.colors.background
-                .ignoresSafeArea()
-
-            HabfitiseLogoView(height: 56)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        LaunchSplashView()
     }
 
     private var upgradeBinding: Binding<UpgradeTrigger?> {
@@ -85,7 +83,7 @@ private struct UpgradeSheetView: View {
                     .foregroundStyle(themeManager.colors.textSecondary)
             }
             .padding(HabfitiseSpacing.xxl)
-            .navigationTitle("Habfitise Pro")
+            .navigationTitle(AppConstants.proProductName)
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium])

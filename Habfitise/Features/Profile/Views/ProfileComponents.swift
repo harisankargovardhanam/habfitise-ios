@@ -110,7 +110,7 @@ struct ProfileProUpgradeRow: View {
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Habfitise Pro")
+                    Text(AppConstants.proProductName)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(theme.colors.textPrimary)
 
@@ -135,82 +135,70 @@ struct ProfileProUpgradeRow: View {
 
 // MARK: - Theme Picker
 
-struct ThemePickerView: View {
-    @Environment(\.dismiss) private var dismiss
+struct ThemePickerGrid: View {
     @Environment(ThemeManager.self) private var themeManager
 
-    var body: some View {
-        VStack(spacing: 0) {
-            Text("Choose Theme")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(themeManager.colors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 16)
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 8) {
-                    ForEach(AppTheme.allCases) { themeOption in
-                        ThemeOptionRow(
-                            theme: themeOption,
-                            isSelected: themeManager.currentTheme == themeOption,
-                            accentGreen: themeOption.colors.accentGreen
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.35)) {
-                                themeManager.applyTheme(themeOption)
-                            }
-                        }
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 10) {
+            ForEach(AppTheme.allCases) { themeOption in
+                ThemeGridCell(
+                    theme: themeOption,
+                    isSelected: themeManager.currentTheme == themeOption
+                ) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        themeManager.applyTheme(themeOption)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
             }
         }
-        .background(themeManager.colors.background.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .preferredColorScheme(themeManager.preferredColorScheme)
     }
 }
 
-struct ThemeOptionRow: View {
+struct ThemeGridCell: View {
+    @Environment(ThemeManager.self) private var themeManager
+
     let theme: AppTheme
     let isSelected: Bool
-    let accentGreen: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
-                ThemePreviewCircle(theme: theme)
+            VStack(spacing: 6) {
+                ZStack {
+                    ThemePreviewCircle(theme: theme)
 
-                Text(theme.rawValue)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(theme.colors.textPrimary)
+                    if isSelected {
+                        Circle()
+                            .strokeBorder(theme.colors.accentGreen, lineWidth: 2.5)
+                            .frame(width: 40, height: 40)
 
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(accentGreen)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(theme.colors.accentGreen)
+                    }
                 }
+                .frame(height: 40)
+
+                Text(theme.gridLabel)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(themeManager.colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? accentGreen.opacity(0.1) : theme.colors.cardBackground)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? theme.colors.accentGreen.opacity(0.12) : Color.clear)
             )
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? accentGreen.opacity(0.25) : theme.colors.cardBorder,
-                        lineWidth: 1
-                    )
-            }
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -234,6 +222,20 @@ struct ThemePreviewCircle: View {
                 .frame(width: 10, height: 10)
         }
         .frame(width: 36, height: 36)
+    }
+}
+
+private extension AppTheme {
+    var gridLabel: String {
+        switch self {
+        case .forestGreen: "Forest"
+        case .electricIndigo: "Indigo"
+        case .sunsetCoral: "Coral"
+        case .royalViolet: "Violet"
+        case .deepTeal: "Teal"
+        case .oceanNavy: "Navy"
+        case .darkMode: "Dark"
+        }
     }
 }
 

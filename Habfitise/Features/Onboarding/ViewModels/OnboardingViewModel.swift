@@ -11,8 +11,15 @@ final class OnboardingViewModel {
     var step = 0
     let totalSteps = 4
 
+    init(skipWelcome: Bool = false) {
+        if skipWelcome {
+            step = 1
+        }
+    }
+
     // MARK: - Step 2 — Goal
 
+    var displayName = ""
     var selectedGoal: OnboardingGoalOption?
 
     // MARK: - Step 3 — Weight & Timeline
@@ -49,14 +56,43 @@ final class OnboardingViewModel {
     var canContinue: Bool {
         switch step {
         case 0: true
-        case 1: selectedGoal != nil
-        case 2: currentWeightKg > 0 && targetWeightKg > 0
+        case 1: !trimmedDisplayName.isEmpty && selectedGoal != nil
+        case 2:
+            if selectedGoal?.isWeightTargetGoal == true {
+                currentWeightKg > 0 && targetWeightKg > 0
+            } else {
+                currentWeightKg > 0
+            }
         case 3: !selectedWeekdays.isEmpty && dailyWaterGoalML >= 500
         default: false
         }
     }
 
+    var trimmedDisplayName: String {
+        displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Goal Summary
+
+    var showsTargetWeight: Bool {
+        selectedGoal?.isWeightTargetGoal == true
+    }
+
+    var weightStepTitle: String {
+        switch selectedGoal {
+        case .buildHabits: "A few details"
+        case .improveFitness: "Your starting point"
+        default: "Set your target"
+        }
+    }
+
+    var timelinePickerTitle: String {
+        switch selectedGoal {
+        case .buildHabits: "Build habits over"
+        case .improveFitness: "Train consistently for"
+        default: "Reach goal by"
+        }
+    }
 
     var goalSummary: OnboardingGoalSummary {
         let unit = weightUnit.label
@@ -69,21 +105,27 @@ final class OnboardingViewModel {
         let formattedMonthly = String(format: "%.1f", monthly)
 
         let headline: String
+        let detail: String?
+
         switch selectedGoal {
         case .loseWeight:
             headline = "Lose \(formattedDelta) \(unit) in \(timeline.label)"
+            detail = "~\(formattedMonthly) \(unit) per month"
         case .buildMuscle:
             headline = "Gain \(formattedDelta) \(unit) in \(timeline.label)"
+            detail = "~\(formattedMonthly) \(unit) per month"
         case .improveFitness:
-            headline = "Reach \(String(format: "%.0f", target)) \(unit) in \(timeline.label)"
+            headline = "Improve fitness over \(timeline.label)"
+            detail = "We'll tailor workouts to your level — not a weight target."
         case .buildHabits:
             headline = "Build healthy habits in \(timeline.label)"
+            detail = "Track workouts, water, and routines — no weight goal needed."
         case nil:
             headline = "Set your goal in the previous step"
+            detail = nil
         }
 
-        let monthlyRate = "~\(formattedMonthly) \(unit) per month"
-        return OnboardingGoalSummary(headline: headline, monthlyRate: monthlyRate)
+        return OnboardingGoalSummary(headline: headline, detail: detail)
     }
 
     // MARK: - Navigation
@@ -163,6 +205,7 @@ final class OnboardingViewModel {
             )
 
             await syncService.syncAll(modelContext: context, userId: userId)
+            await NotificationService.shared.rescheduleAllReminders(userId: userId, context: context)
             appState.finishOnboarding()
         } catch {
             buildError = error.localizedDescription
@@ -176,6 +219,7 @@ final class OnboardingViewModel {
     }
 
     func signOutExistingAccount(appState: AppState) async {
+        NotificationService.shared.resetAllReminders()
         if AppConstants.Backend.useLocalOnly {
             LocalSessionService.clearSession()
         } else {
@@ -225,7 +269,7 @@ final class OnboardingViewModel {
     ) throws {
         let profile = UserProfile(
             userId: userId,
-            displayName: "",
+            displayName: trimmedDisplayName,
             weightKg: currentWeightKg,
             goal: selectedGoal?.rawValue ?? "",
             targetWeightKg: targetWeightKg,
@@ -256,6 +300,7 @@ final class OnboardingViewModel {
         let waterGoal = WaterGoal(
             userId: userId,
             dailyGoalMl: dailyWaterGoalML,
+            reminderIntervalMinutes: AppConstants.Water.defaultReminderIntervalMinutes,
             synced: false
         )
         context.insert(waterGoal)

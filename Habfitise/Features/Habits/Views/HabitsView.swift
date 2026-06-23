@@ -100,11 +100,26 @@ struct HabitsContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
+            .alert("Delete habit?", isPresented: $viewModel.showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    HabfitiseHaptics.destructive()
+                    if let habit = viewModel.habitPendingDelete {
+                        viewModel.deleteHabit(habit, context: modelContext)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.habitPendingDelete = nil
+                }
+            } message: {
+                if let habit = viewModel.habitPendingDelete {
+                    Text("“\(habit.name)” and its history will be removed permanently.")
+                }
+            }
     }
 
     private var habitsScreenContent: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: HabfitiseSpacing.lg) {
+            VStack(spacing: HabfitiseSpacing.md) {
                 habitsHeader
                     .habfitiseStaggeredAppear(index: 0)
 
@@ -147,6 +162,9 @@ struct HabitsContentView: View {
                                         completions: weekCompletions,
                                         context: modelContext
                                     )
+                                },
+                                onDelete: {
+                                    viewModel.requestDelete(habit)
                                 }
                             )
                         }
@@ -181,9 +199,10 @@ struct HabitsContentView: View {
                 .habfitiseStaggeredAppear(index: 1)
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }
-            .padding(.bottom, TabBarLayout.floatingClearance)
+            .padding(.bottom, TabBarLayout.tabBarScrollInset)
             .reportScrollOffsetToTabBar()
         }
+        .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
@@ -208,7 +227,7 @@ struct HabitsContentView: View {
 
     private var summaryRow: some View {
         HStack {
-            Text("\(viewModel.activeHabitCount(from: habits)) active habits")
+            Text("\(HabfitiseCopy.counted(viewModel.activeHabitCount(from: habits), "active habit", plural: "active habits"))")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(theme.colors.textSecondary)
 
@@ -216,7 +235,7 @@ struct HabitsContentView: View {
 
             HStack(spacing: 4) {
                 Text("🔥")
-                Text("\(viewModel.aggregateStreak(from: habits)) day streak")
+                Text("\(HabfitiseCopy.counted(viewModel.aggregateStreak(from: habits), "day")) streak")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.colors.textPrimary)
             }

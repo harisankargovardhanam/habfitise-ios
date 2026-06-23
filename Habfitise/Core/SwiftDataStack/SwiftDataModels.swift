@@ -258,7 +258,7 @@ final class WaterGoal: SyncTrackable {
         id: UUID = UUID(),
         userId: String,
         dailyGoalMl: Int = AppConstants.Water.defaultDailyGoalML,
-        reminderIntervalMinutes: Int = 60,
+        reminderIntervalMinutes: Int = AppConstants.Water.defaultReminderIntervalMinutes,
         reminderStartTime: Date = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: .now) ?? .now,
         reminderEndTime: Date = Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: .now) ?? .now,
         isReminderEnabled: Bool = true,

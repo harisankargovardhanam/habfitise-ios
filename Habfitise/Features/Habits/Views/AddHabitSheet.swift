@@ -192,6 +192,10 @@ struct AddHabitSheet: View {
         modelContext.insert(habit)
         try? modelContext.save()
 
+        Task {
+            await NotificationService.shared.scheduleHabitReminder(habit: habit, context: modelContext)
+        }
+
         onSave()
         dismiss()
     }

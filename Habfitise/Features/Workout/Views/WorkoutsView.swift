@@ -9,14 +9,12 @@ struct WorkoutsView: View {
     @Environment(ThemeManager.self) private var theme
 
     @State private var builderRoute: WorkoutBuilderRoute?
-    @State private var showHistory = false
 
     var body: some View {
         Group {
             if let userId = appState.authenticatedUserId {
                 WorkoutsContentView(
                     userId: userId,
-                    showHistory: $showHistory,
                     onOpenBuilder: openBuilder
                 )
             } else {
@@ -34,22 +32,21 @@ struct WorkoutsView: View {
         }
     }
 
-    private func openBuilder(type: WorkoutType, template: WorkoutTemplate?) {
+    private func openBuilder(type: WorkoutType?, template: WorkoutTemplate?) {
         builderRoute = WorkoutBuilderRoute(type: type, template: template)
     }
 }
 
 private struct WorkoutsContentView: View {
     let userId: String
-    @Binding var showHistory: Bool
-    let onOpenBuilder: (WorkoutType, WorkoutTemplate?) -> Void
+    let onOpenBuilder: (WorkoutType?, WorkoutTemplate?) -> Void
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) private var appState
     @Environment(ThemeManager.self) private var theme
 
     @State private var selectedSession: WorkoutSession?
-    @State private var showCardioPicker = false
+    @State private var showHistory = false
     @State private var streakStats = WorkoutStreakStats(currentStreak: 0, bestStreak: 0, monthCompleted: 0, monthPlanned: 16, consistency30Day: 0)
     @State private var aiSuggestion: WorkoutSuggestion?
     @State private var showAISuggestion = true
@@ -61,11 +58,9 @@ private struct WorkoutsContentView: View {
 
     init(
         userId: String,
-        showHistory: Binding<Bool>,
-        onOpenBuilder: @escaping (WorkoutType, WorkoutTemplate?) -> Void
+        onOpenBuilder: @escaping (WorkoutType?, WorkoutTemplate?) -> Void
     ) {
         self.userId = userId
-        _showHistory = showHistory
         self.onOpenBuilder = onOpenBuilder
 
         _templates = Query(
@@ -137,6 +132,7 @@ private struct WorkoutsContentView: View {
                             .frame(width: 40, height: 40)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Workout history")
                 }
                 .habfitiseStaggeredAppear(index: 0)
 
@@ -173,28 +169,31 @@ private struct WorkoutsContentView: View {
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }
-            .padding(.bottom, TabBarLayout.floatingClearance)
+            .padding(.bottom, TabBarLayout.tabBarScrollInset)
             .reportScrollOffsetToTabBar()
         }
+        .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
         .background(theme.colors.background.ignoresSafeArea())
-        .navigationDestination(isPresented: $showHistory) {
-            WorkoutHistoryView(userId: userId)
-        }
         .habfitiseTabScreen(immersiveHeader: true)
         .sheet(item: $selectedSession) { session in
             NavigationStack {
                 SessionDetailView(session: session, showsDoneButton: true)
             }
         }
-        .confirmationDialog("Choose cardio type", isPresented: $showCardioPicker, titleVisibility: .visible) {
-            Button("Outdoor Run") { launchQuickStart(type: .cardio) }
-            Button("Treadmill") { launchQuickStart(type: .cardio) }
-            Button("Cycling") { launchQuickStart(type: .cardio) }
-            Button("Walking") { launchQuickStart(type: .cardio) }
-            Button("Cancel", role: .cancel) {}
+        .sheet(isPresented: $showHistory) {
+            NavigationStack {
+                WorkoutHistoryView(userId: userId)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Done") { showHistory = false }
+                                .foregroundStyle(theme.colors.accentGreen)
+                        }
+                    }
+            }
+            .presentationDragIndicator(.visible)
         }
         .onAppear(perform: refreshEnhancementData)
         .onChange(of: recentSessions.count) { _, _ in refreshEnhancementData() }
@@ -233,7 +232,7 @@ private struct WorkoutsContentView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 quickStartButton(type: .weights, icon: "dumbbell.fill", label: "Weights")
-                quickStartButton(type: .cardio, icon: "figure.run", label: "Cardio", showsSubtypes: true)
+                quickStartButton(type: .cardio, icon: "figure.run", label: "Cardio")
                 quickStartButton(type: .bodyweight, icon: "figure.jumprope", label: "Bodyweight")
                 quickStartButton(type: .hiit, icon: "bolt.heart.fill", label: "HIIT")
             }
@@ -300,19 +299,20 @@ private struct WorkoutsContentView: View {
     }
 
     private var templatesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+            HStack(alignment: .firstTextBaseline) {
                 Text("MY TEMPLATES")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 Button {
-                    launchQuickStart(type: .weights)
+                    launchNewTemplate()
                 } label: {
                     Label("New", systemImage: "plus")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.colors.accentGreen)
                 }
+                .buttonStyle(.plain)
             }
 
             if templates.isEmpty {
@@ -380,15 +380,10 @@ private struct WorkoutsContentView: View {
     private func quickStartButton(
         type: WorkoutType,
         icon: String,
-        label: String,
-        showsSubtypes: Bool = false
+        label: String
     ) -> some View {
         Button {
-            if showsSubtypes {
-                showCardioPicker = true
-            } else {
-                launchQuickStart(type: type)
-            }
+            launchQuickStart(type: type)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: icon)
@@ -415,6 +410,10 @@ private struct WorkoutsContentView: View {
         onOpenBuilder(type, nil)
     }
 
+    private func launchNewTemplate() {
+        onOpenBuilder(nil, nil)
+    }
+
     private func deleteTemplate(_ template: WorkoutTemplate) {
         modelContext.delete(template)
         try? modelContext.save()
@@ -423,7 +422,7 @@ private struct WorkoutsContentView: View {
 
 struct WorkoutBuilderRoute: Identifiable {
     let id = UUID()
-    let type: WorkoutType
+    let type: WorkoutType?
     let template: WorkoutTemplate?
 }
 

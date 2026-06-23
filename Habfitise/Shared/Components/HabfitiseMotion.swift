@@ -124,8 +124,6 @@ struct HabfitiseBreathingLoader: View {
 
     var body: some View {
         VStack(spacing: HabfitiseSpacing.lg) {
-            HabfitiseLogoView(height: 36)
-
             ZStack {
                 ForEach(0..<3, id: \.self) { ring in
                     Circle()
@@ -145,9 +143,12 @@ struct HabfitiseBreathingLoader: View {
                         )
                 }
 
-                Image(systemName: "figure.run")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(theme.colors.accentGreen)
+                Image("VayaLogo")
+                    .resizable()
+                    .renderingMode(.original)
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(maxWidth: 44, maxHeight: 44)
                     .scaleEffect(breathe ? 1.06 : 0.94)
                     .animation(HabfitiseAnimation.breathe, value: breathe)
             }

@@ -2,9 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct WorkoutBuilderView: View {
-    let type: WorkoutType
+    let type: WorkoutType?
     let template: WorkoutTemplate?
-    var session: WorkoutSession?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -20,10 +19,9 @@ struct WorkoutBuilderView: View {
     @State private var showStartWorkoutConfirm = false
     @FocusState private var nameFocused: Bool
 
-    init(type: WorkoutType, template: WorkoutTemplate?, session: WorkoutSession? = nil) {
+    init(type: WorkoutType?, template: WorkoutTemplate?) {
         self.type = type
         self.template = template
-        self.session = session
     }
 
     var body: some View {
@@ -37,13 +35,13 @@ struct WorkoutBuilderView: View {
                     .background(theme.colors.cardBackground.ignoresSafeArea())
             }
         }
+        .fullScreenWidthBounds()
         .onAppear {
             guard viewModel == nil, let userId = appState.authenticatedUserId else { return }
             let vm = WorkoutBuilderViewModel(
                 userId: userId,
                 type: type,
-                template: template,
-                session: session
+                template: template
             )
             viewModel = vm
             vm.onAppear(context: modelContext)
@@ -66,6 +64,9 @@ struct WorkoutBuilderView: View {
         @Bindable var viewModel = viewModel
 
         ZStack(alignment: .bottomTrailing) {
+            theme.colors.cardBackground
+                .ignoresSafeArea()
+
             Group {
                 if viewModel.screenPhase == .setup {
                     setupPhase(viewModel)
@@ -96,7 +97,6 @@ struct WorkoutBuilderView: View {
                 .padding(.bottom, 24)
             }
         }
-        .background(theme.colors.cardBackground.ignoresSafeArea())
         .sheet(isPresented: $viewModel.showExercisePicker) {
             ExercisePickerSheet(
                 workoutType: viewModel.workoutType,
@@ -149,6 +149,7 @@ struct WorkoutBuilderView: View {
                     viewModel.showCompletion = false
                     dismiss()
                 }
+                .environment(theme)
             }
         }
     }
@@ -170,6 +171,7 @@ struct WorkoutBuilderView: View {
                     exerciseList(viewModel)
                     addExerciseButton { viewModel.showExercisePicker = true }
                     notesCard(viewModel)
+                    saveTemplateButton(viewModel)
                     startWorkoutButton(viewModel)
                 }
                 .padding(16)
@@ -181,13 +183,6 @@ struct WorkoutBuilderView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(theme.colors.textSecondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Start") {
-                        showStartWorkoutConfirm = true
-                    }
-                    .foregroundStyle(theme.colors.accentGreen)
-                    .disabled(!viewModel.canStartSetup)
                 }
             }
             .toolbarBackground(theme.colors.cardBackground, for: .navigationBar)
@@ -339,6 +334,26 @@ struct WorkoutBuilderView: View {
             .background(cardBackground)
     }
 
+    private func saveTemplateButton(_ viewModel: WorkoutBuilderViewModel) -> some View {
+        Button {
+            if viewModel.saveAsTemplate(context: modelContext, syncService: syncService) {
+                dismiss()
+            }
+        } label: {
+            Text("Save as template")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(theme.colors.accentGreen)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(theme.colors.accentGreen, lineWidth: 1.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!viewModel.canStartSetup)
+    }
+
     private func startWorkoutButton(_ viewModel: WorkoutBuilderViewModel) -> some View {
         Button {
             showStartWorkoutConfirm = true
@@ -377,37 +392,51 @@ struct WorkoutBuilderView: View {
             }
             .background(theme.colors.chipBackground)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if viewModel.showWeightLogPrompt {
-                        WorkoutStartWeightPrompt(
-                            weightText: $startWeightText,
-                            onSave: {
-                                if let weight = Double(startWeightText) {
-                                    viewModel.logStartWeight(weight, context: modelContext)
-                                }
-                            },
-                            onDismiss: { viewModel.dismissWeightLogPrompt() }
-                        )
+            ZStack(alignment: .top) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if viewModel.showWeightLogPrompt {
+                            WorkoutStartWeightPrompt(
+                                weightText: $startWeightText,
+                                onSave: {
+                                    if let weight = Double(startWeightText) {
+                                        viewModel.logStartWeight(weight, context: modelContext)
+                                    }
+                                },
+                                onDismiss: { viewModel.dismissWeightLogPrompt() }
+                            )
+                        }
+                        if let exercise = viewModel.currentExercise {
+                            currentExerciseCard(viewModel, exercise: exercise)
+                        }
+                        if viewModel.showRestTimer {
+                            BuilderRestTimerBar(
+                                countdown: viewModel.restCountdownString,
+                                progress: viewModel.restProgress,
+                                isWarning: viewModel.restSecondsRemaining <= 10,
+                                onSkip: { viewModel.skipRest() },
+                                onEdit: { showRestEditor = true }
+                            )
+                        }
+                        sessionNotesField(viewModel)
                     }
-                    if let exercise = viewModel.currentExercise {
-                        currentExerciseCard(viewModel, exercise: exercise)
-                    }
-                    if viewModel.showRestTimer {
-                        BuilderRestTimerBar(
-                            countdown: viewModel.restCountdownString,
-                            progress: viewModel.restProgress,
-                            isWarning: viewModel.restSecondsRemaining <= 10,
-                            onSkip: { viewModel.skipRest() },
-                            onEdit: { showRestEditor = true }
-                        )
-                    }
-                    sessionNotesField(viewModel)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .padding(.bottom, 80)
                 }
-                .padding(16)
-                .padding(.bottom, 80)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if let toast = viewModel.prToast {
+                    WorkoutPRToastBanner(toast: toast)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .zIndex(10)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.spring(response: 0.42, dampingFraction: 0.82), value: viewModel.prToast?.id)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func activeHeader(_ viewModel: WorkoutBuilderViewModel) -> some View {
@@ -498,7 +527,12 @@ struct WorkoutBuilderView: View {
                     seconds: viewModel.cardioTimerSeconds,
                     isRunning: viewModel.cardioTimerRunning,
                     onToggle: { viewModel.toggleCardioTimer() },
-                    onStop: { viewModel.stopCardioTimer(exerciseId: exercise.id) }
+                    onStop: {
+                        viewModel.stopCardioTimer(exerciseId: exercise.id)
+                        if let set = viewModel.currentSets.first(where: { !$0.isCompleted }) {
+                            viewModel.completeSet(setId: set.id, exerciseId: exercise.id, context: modelContext)
+                        }
+                    }
                 )
             } else {
                 setTableHeader(exercise: exercise)
@@ -565,7 +599,7 @@ struct WorkoutBuilderView: View {
                 Text("REPS").frame(maxWidth: .infinity)
                 Text("WEIGHT").frame(maxWidth: .infinity)
             }
-            Spacer().frame(width: 28)
+            Color.clear.frame(width: 28, height: 1)
         }
         .font(.system(size: 10, weight: .semibold))
         .foregroundStyle(theme.colors.textTertiary)

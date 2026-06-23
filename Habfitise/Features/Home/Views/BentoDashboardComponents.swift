@@ -50,8 +50,6 @@ struct BentoCollapsingDashboard<Content: View>: View {
     let onProfileTap: () -> Void
     @ViewBuilder let content: () -> Content
 
-    private let bottomContentPadding: CGFloat = 140
-
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
@@ -61,11 +59,12 @@ struct BentoCollapsingDashboard<Content: View>: View {
                 content()
                     .padding(.horizontal, HabfitiseSpacing.xl)
                     .padding(.top, HabfitiseSpacing.md)
-                    .padding(.bottom, bottomContentPadding)
+                    .padding(.bottom, TabBarLayout.tabBarScrollInset)
                     .frame(maxWidth: .infinity, alignment: .top)
                     .background(theme.colors.background.ignoresSafeArea(edges: .bottom))
             }
         }
+        .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
         .background(theme.colors.background.ignoresSafeArea())
         .scrollContentBackground(.hidden)
         .scrollIndicators(.hidden)
@@ -263,7 +262,7 @@ struct BentoPeriodPicker: View {
                         selection = period
                     }
                 } label: {
-                    Text(period.rawValue)
+                    Text(period.title)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(isSelected ? theme.colors.accentGreen : .secondary)
                         .frame(maxWidth: .infinity)
@@ -298,44 +297,73 @@ struct BentoActivityChartBody: View {
     @State private var barsRevealed = false
     @Environment(ThemeManager.self) private var theme
 
+    private var activeDayCount: Int {
+        bars.filter { $0.value > 0 }.count
+    }
+
+    private var hasActivity: Bool {
+        activeDayCount > 0
+    }
+
     var body: some View {
-        let peak = max(bars.map(\.value).max() ?? 0, 1)
+        let peak = chartPeak(for: bars, period: period)
 
         VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
             BentoPeriodPicker(selection: $period)
 
-            HStack(alignment: .bottom, spacing: HabfitiseSpacing.sm) {
-                ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
-                    let animatedHeight = barHeight(for: bar.value, peak: peak)
+            if !hasActivity {
+                Text("Log a workout to see your activity")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, HabfitiseSpacing.lg)
+                    .padding(.horizontal, HabfitiseSpacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
+                            .fill(theme.colors.fieldBackground)
+                    )
+            } else {
+                VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
+                    if activeDayCount == 1 {
+                        Text("1 workout in this period")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
 
-                    VStack(spacing: 8) {
-                        barMark(for: bar, peak: peak)
-                            .frame(height: barsRevealed ? animatedHeight : 0, alignment: .bottom)
-                            .animation(
-                                .spring(response: 0.5, dampingFraction: 0.7)
-                                    .delay(Double(index) * 0.04),
-                                value: barsRevealed
-                            )
+                    HStack(alignment: .bottom, spacing: HabfitiseSpacing.sm) {
+                        ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
+                            let animatedHeight = barHeight(for: bar.value, peak: peak)
 
-                        Text(bar.label)
-                            .font(.system(size: 11, weight: bar.isCurrent ? .semibold : .medium, design: .rounded))
-                            .foregroundStyle(
-                                bar.isCurrent
-                                    ? Color.white
-                                    : Color.white.opacity(0.72)
-                            )
+                            VStack(spacing: 8) {
+                                barMark(for: bar, peak: peak)
+                                    .frame(height: barsRevealed ? animatedHeight : 0, alignment: .bottom)
+                                    .animation(
+                                        .spring(response: 0.5, dampingFraction: 0.7)
+                                            .delay(Double(index) * 0.04),
+                                        value: barsRevealed
+                                    )
+
+                                Text(bar.label)
+                                    .font(.system(size: 11, weight: bar.isCurrent ? .semibold : .medium, design: .rounded))
+                                    .foregroundStyle(
+                                        bar.isCurrent
+                                            ? theme.colors.textPrimary
+                                            : theme.colors.textSecondary
+                                    )
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: maxHeight + 24, alignment: .bottom)
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: maxHeight + 24, alignment: .bottom)
+                    .padding(.horizontal, HabfitiseSpacing.sm)
+                    .padding(.vertical, HabfitiseSpacing.lg)
+                    .background(
+                        RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
+                            .fill(theme.colors.fieldBackground)
+                    )
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, HabfitiseSpacing.sm)
-            .padding(.vertical, HabfitiseSpacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
-                    .fill(theme.colors.accentGreen)
-            )
         }
         .onAppear { revealBars() }
         .onChange(of: bars.map(\.id)) { _, _ in revealBars() }
@@ -345,16 +373,16 @@ struct BentoActivityChartBody: View {
     private func barMark(for bar: BentoActivityBar, peak: Double) -> some View {
         if bar.value <= 0 {
             Circle()
-                .fill(Color.white.opacity(bar.isCurrent ? 0.9 : 0.32))
+                .fill(theme.colors.trackBackground)
                 .frame(width: idleDotSize, height: idleDotSize)
         } else if bar.isCurrent {
             Capsule()
-                .fill(Color.white)
+                .fill(theme.colors.accentGreen)
                 .frame(width: 18)
-                .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+                .shadow(color: theme.colors.accentGreen.opacity(0.25), radius: 6, y: 3)
         } else {
             Capsule()
-                .fill(Color.white.opacity(0.42))
+                .fill(theme.colors.accentGreen.opacity(0.45))
                 .frame(width: 14)
         }
     }
@@ -362,7 +390,19 @@ struct BentoActivityChartBody: View {
     private func barHeight(for value: Double, peak: Double) -> CGFloat {
         guard value > 0 else { return idleDotSize }
         let ratio = CGFloat(value / peak)
-        return max(28, maxHeight * ratio)
+        let capped = min(ratio, 0.72)
+        return max(20, maxHeight * capped)
+    }
+
+    /// Keeps a single workout from filling the whole chart — bars scale against a sensible floor.
+    private func chartPeak(for bars: [BentoActivityBar], period: BentoMetricsPeriod) -> Double {
+        let actualMax = bars.map(\.value).max() ?? 0
+        let floor: Double = switch period {
+        case .day: 45
+        case .week: 60
+        case .month: 180
+        }
+        return max(actualMax, floor, 1)
     }
 
     private func revealBars() {
@@ -426,14 +466,12 @@ struct BentoWaterDropRow: View {
         HStack(spacing: 4) {
             ForEach(0..<dropCount, id: \.self) { index in
                 Button(action: onTap) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 14))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(
-                            index < filledCount
-                                ? BentoCardAccent.water.focalColor(in: theme.colors)
-                                : theme.colors.trackBackground
-                        )
+                    WaterGlassIcon(
+                        isFilled: index < filledCount,
+                        size: 14,
+                        filledColor: BentoCardAccent.water.focalColor(in: theme.colors),
+                        emptyColor: theme.colors.trackBackground
+                    )
                         .frame(maxWidth: .infinity)
                         .frame(height: 20)
                 }
@@ -530,7 +568,7 @@ struct BentoMoodSelector: View {
                     .buttonStyle(.plain)
 
                     Text(labels[index])
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(
                             isSelected
                                 ? accent.focalColor(in: theme.colors)
@@ -613,6 +651,12 @@ enum BentoActivityBuilder {
         }
     }
 
+    private static let weekStartFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter
+    }()
+
     private static func weekBars(sessions: [WorkoutSession], calendar: Calendar) -> [BentoActivityBar] {
         let today = calendar.startOfDay(for: .now)
         let symbols = calendar.shortWeekdaySymbols
@@ -622,16 +666,13 @@ enum BentoActivityBuilder {
                 return BentoActivityBar(id: "\(offset)", label: "-", value: 0, isCurrent: false)
             }
             let next = calendar.date(byAdding: .day, value: 1, to: day) ?? day
-            let count = Double(sessions.filter { session in
-                guard let completed = session.completedAt else { return false }
-                return completed >= day && completed < next
-            }.count)
+            let minutes = activityMinutes(in: sessions, from: day, until: next)
             let weekday = calendar.component(.weekday, from: day) - 1
-            let label = String(symbols[weekday].prefix(1))
+            let label = String(symbols[weekday].prefix(2))
             return BentoActivityBar(
                 id: "\(offset)",
                 label: label,
-                value: count,
+                value: minutes,
                 isCurrent: calendar.isDate(day, inSameDayAs: today)
             )
         }
@@ -640,18 +681,22 @@ enum BentoActivityBuilder {
     private static func dayBars(sessions: [WorkoutSession], calendar: Calendar) -> [BentoActivityBar] {
         let today = calendar.startOfDay(for: .now)
         let labels = ["6a", "9a", "12p", "3p", "6p", "9p", "Now"]
-        let hours = [6, 9, 12, 15, 18, 21, 23]
+        let bucketEnds = [6, 9, 12, 15, 18, 21, 24]
 
-        return hours.enumerated().map { index, hour in
-            let count = Double(sessions.filter { session in
-                guard let completed = session.completedAt, calendar.isDate(completed, inSameDayAs: today) else { return false }
-                return calendar.component(.hour, from: completed) <= hour
-            }.count)
+        return bucketEnds.enumerated().map { index, endHour in
+            let startHour = index == 0 ? 0 : bucketEnds[index - 1]
+            let minutes = activityMinutes(
+                in: sessions,
+                on: today,
+                fromHour: startHour,
+                toHour: endHour,
+                calendar: calendar
+            )
             return BentoActivityBar(
                 id: "\(index)",
                 label: labels[index],
-                value: count,
-                isCurrent: index == hours.count - 1
+                value: minutes,
+                isCurrent: index == bucketEnds.count - 1
             )
         }
     }
@@ -664,18 +709,46 @@ enum BentoActivityBuilder {
                 let start = calendar.dateInterval(of: .weekOfYear, for: weekStart)?.start,
                 let end = calendar.date(byAdding: .day, value: 7, to: start)
             else {
-                return BentoActivityBar(id: "\(offset)", label: "W\(offset + 1)", value: 0, isCurrent: offset == 3)
+                return BentoActivityBar(id: "\(offset)", label: "-", value: 0, isCurrent: offset == 3)
             }
-            let count = Double(sessions.filter { session in
-                guard let completed = session.completedAt else { return false }
-                return completed >= start && completed < end
-            }.count)
+            let minutes = activityMinutes(in: sessions, from: start, until: end)
             return BentoActivityBar(
                 id: "\(offset)",
-                label: "W\(offset + 1)",
-                value: count,
+                label: weekStartFormatter.string(from: start),
+                value: minutes,
                 isCurrent: offset == 3
             )
+        }
+    }
+
+    private static func activityMinutes(
+        in sessions: [WorkoutSession],
+        from start: Date,
+        until end: Date
+    ) -> Double {
+        sessions.reduce(0) { total, session in
+            guard let completed = session.completedAt else { return total }
+            guard completed >= start && completed < end else { return total }
+            let minutes = max(session.durationSeconds, 60) / 60
+            return total + Double(minutes)
+        }
+    }
+
+    private static func activityMinutes(
+        in sessions: [WorkoutSession],
+        on day: Date,
+        fromHour startHour: Int,
+        toHour endHour: Int,
+        calendar: Calendar
+    ) -> Double {
+        sessions.reduce(0) { total, session in
+            guard let completed = session.completedAt, calendar.isDate(completed, inSameDayAs: day) else {
+                return total
+            }
+            let hour = calendar.component(.hour, from: completed)
+            guard hour >= startHour && hour < endHour else { return total }
+            let minutes = max(session.durationSeconds, 60) / 60
+            return total + Double(minutes)
         }
     }
 }

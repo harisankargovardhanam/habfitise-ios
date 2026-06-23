@@ -24,6 +24,15 @@ private struct ScrollOffsetReader: View {
     }
 }
 
+/// Zero-height row placed at the top of `List` content so scroll offset tracks correctly.
+struct TabBarScrollOffsetMarker: View {
+    var body: some View {
+        Color.clear
+            .frame(height: 0)
+            .background(ScrollOffsetReader())
+    }
+}
+
 extension View {
     /// Attach to scroll content inside a tab screen. Reports offset to `TabBarState`.
     func reportScrollOffsetToTabBar() -> some View {
@@ -104,6 +113,7 @@ private struct HabfitiseTabScreenModifier: ViewModifier {
     @ViewBuilder
     private func tabScreenContent(_ content: Content) -> some View {
         content
+            .safeAreaPadding(.top, immersiveHeader ? HabfitiseSpacing.sm : 0)
             .navigationTitle(title ?? "")
             .navigationBarTitleDisplayMode(title == nil ? .inline : .large)
             .toolbar {
@@ -138,7 +148,7 @@ struct HabfitiseTabScrollContainer<Content: View>: View {
         ScrollView {
             content()
                 .reportScrollOffsetToTabBar()
-                .padding(.bottom, 120)
+                .padding(.bottom, TabBarLayout.scrollBreathingRoom)
         }
         .scrollIndicators(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)

@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(AppState.self) private var appState
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = SettingsViewModel()
 
     var body: some View {
@@ -14,10 +15,13 @@ struct SettingsView: View {
 
                 HabfitiseCard {
                     VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
-                        Toggle("Notifications", isOn: $viewModel.notificationsEnabled)
+                        Toggle("Notifications", isOn: Binding(
+                            get: { viewModel.notificationsEnabled },
+                            set: { viewModel.setNotificationsEnabled($0, userId: appState.authenticatedUserId, context: modelContext) }
+                        ))
 
                         HStack {
-                            Text("Habfitise Pro")
+                            Text(AppConstants.proProductName)
                             Spacer()
                             Text(appState.isPro ? "Active" : "Free")
                                 .foregroundStyle(appState.isPro ? theme.colors.accentGreen : theme.colors.textSecondary)

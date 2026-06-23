@@ -40,7 +40,7 @@ enum BentoCardAccent {
         case .water: "drop.fill"
         case .streak: "flame.fill"
         case .mood: "bolt.heart.fill"
-        case .bodyWeight: "scalemass.fill"
+        case .bodyWeight: "scalemass"
         }
     }
 
@@ -104,11 +104,17 @@ struct BentoCardHeader: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: HabfitiseSpacing.sm) {
-            Image(systemName: accent.systemImage)
-                .font(.system(size: BentoCardStyle.headerIconSize, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(accent.focalColor(in: theme.colors))
-                .frame(width: 22, height: 22, alignment: .center)
+            Group {
+                if accent == .water {
+                    WaterGlassIcon(isFilled: true, size: BentoCardStyle.headerIconSize)
+                } else {
+                    Image(systemName: accent.systemImage)
+                        .font(.system(size: BentoCardStyle.headerIconSize, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                }
+            }
+            .foregroundStyle(accent.focalColor(in: theme.colors))
+            .frame(width: 22, height: 22, alignment: .center)
 
             Text(title.uppercased())
                 .font(.caption)

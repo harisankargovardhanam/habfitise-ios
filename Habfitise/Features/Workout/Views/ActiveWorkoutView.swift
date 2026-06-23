@@ -95,6 +95,7 @@ struct ActiveWorkoutView: View {
                     viewModel.showCompletionSheet = false
                     dismiss()
                 }
+                .environment(theme)
             }
         }
     }

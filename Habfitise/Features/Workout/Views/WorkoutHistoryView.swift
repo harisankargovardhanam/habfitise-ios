@@ -58,10 +58,6 @@ struct WorkoutHistoryView: View {
     @State private var showCalendar = false
     @State private var showFilterBar = true
 
-    private let sheetBackground = Color(hex: "#111111")
-    private let cardBackground = Color(hex: "#2A2A2A")
-    private let mutedText = Color(hex: "#9CA3AF")
-
     init(userId: String) {
         self.userId = userId
         _sessions = Query(
@@ -100,6 +96,7 @@ struct WorkoutHistoryView: View {
         .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .habfitiseNavigationBar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -131,15 +128,15 @@ struct WorkoutHistoryView: View {
                     } label: {
                         Text(filter.title)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(selectedFilter == filter ? sheetBackground : .white)
+                            .foregroundStyle(selectedFilter == filter ? theme.colors.textOnBackground : theme.colors.textPrimary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .background(
-                                Capsule().fill(selectedFilter == filter ? theme.colors.accentGreen : cardBackground)
+                                Capsule().fill(selectedFilter == filter ? theme.colors.accentGreen : theme.colors.cardBackground)
                             )
                             .overlay(
                                 Capsule()
-                                    .strokeBorder(Color(hex: "#3A3A3A"), lineWidth: selectedFilter == filter ? 0 : 1)
+                                    .strokeBorder(theme.colors.cardBorder, lineWidth: selectedFilter == filter ? 0 : 1)
                             )
                     }
                     .buttonStyle(.plain)
@@ -166,7 +163,7 @@ struct WorkoutHistoryView: View {
                     Spacer()
                     Image(systemName: showCalendar ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(mutedText)
+                        .foregroundStyle(theme.colors.textSecondary)
                 }
             }
             .buttonStyle(.plain)
@@ -200,7 +197,7 @@ struct WorkoutHistoryView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardBackground)
+                .fill(theme.colors.cardBackground)
         )
     }
 
@@ -211,12 +208,12 @@ struct WorkoutHistoryView: View {
             HStack {
                 Text(section.title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(mutedText)
+                    .foregroundStyle(theme.colors.textSecondary)
                     .textCase(.uppercase)
                 Spacer()
                 Text("\(section.sessions.count) sessions")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(mutedText)
+                    .foregroundStyle(theme.colors.textSecondary)
             }
 
             ForEach(section.sessions) { session in
@@ -236,13 +233,13 @@ struct WorkoutHistoryView: View {
         VStack(spacing: 8) {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 36))
-                .foregroundStyle(mutedText)
+                .foregroundStyle(theme.colors.textSecondary)
             Text("No sessions match this filter")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.colors.textPrimary)
             Text("Complete a workout to see it here")
                 .font(.system(size: 13))
-                .foregroundStyle(mutedText)
+                .foregroundStyle(theme.colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -361,12 +358,11 @@ struct SessionListMetrics {
 }
 
 struct SessionListRow: View {
+    @Environment(ThemeManager.self) private var theme
+
     let session: WorkoutSession
     let hasPRs: Bool
     let metrics: SessionListMetrics
-
-    private let cardBackground = Color(hex: "#2A2A2A")
-    private let mutedText = Color(hex: "#9CA3AF")
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -375,12 +371,12 @@ struct SessionListRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.name)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .lineLimit(2)
 
                 Text((session.completedAt ?? session.startedAt).formattedShortDate())
                     .font(.system(size: 12))
-                    .foregroundStyle(mutedText)
+                    .foregroundStyle(theme.colors.textSecondary)
             }
 
             Spacer(minLength: 8)
@@ -388,16 +384,16 @@ struct SessionListRow: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text(metrics.primary)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.colors.textPrimary)
                 Text(metrics.duration)
                     .font(.system(size: 12))
-                    .foregroundStyle(mutedText)
+                    .foregroundStyle(theme.colors.textSecondary)
             }
         }
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardBackground)
+                .fill(theme.colors.cardBackground)
         )
         .overlay(alignment: .topTrailing) {
             if hasPRs {

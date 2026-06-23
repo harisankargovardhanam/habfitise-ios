@@ -13,7 +13,6 @@ struct ProfileView: View {
     @State private var settingsViewModel = SettingsViewModel()
     @State private var showSignOutConfirm = false
     @State private var showDeleteConfirm = false
-    @State private var showThemePicker = false
     @State private var showPaywall = false
     @State private var showEditProfile = false
     @State private var showTargetWeightEdit = false
@@ -54,10 +53,9 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 17))
-                        .foregroundStyle(themeManager.colors.accentGreen)
+                        .fontWeight(.semibold)
                 }
             }
             .toolbarBackground(themeManager.colors.background, for: .navigationBar)
@@ -67,10 +65,6 @@ struct ProfileView: View {
         .preferredColorScheme(themeManager.preferredColorScheme)
         .onAppear {
             viewModel.load(profile: profiles.first, userId: userId)
-        }
-        .sheet(isPresented: $showThemePicker) {
-            ThemePickerView()
-                .environment(themeManager)
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
@@ -175,12 +169,14 @@ struct ProfileView: View {
             ProfileSectionLabel(title: "Appearance")
 
             ProfileDarkCell {
-                ProfileChevronRow(
-                    title: "App Theme",
-                    value: themeManager.currentTheme.rawValue
-                ) {
-                    showThemePicker = true
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("App Theme")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(themeManager.colors.textPrimary)
+
+                    ThemePickerGrid()
                 }
+                .padding(16)
             }
         }
     }

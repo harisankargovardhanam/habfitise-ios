@@ -252,10 +252,7 @@ private struct WaterDropButton: View {
             onTap()
             animateTap()
         } label: {
-            Image(systemName: "drop.fill")
-                .font(.system(size: 28))
-                .foregroundStyle(isFilled ? theme.colors.waterBlue : theme.colors.trackBackground)
-                .frame(width: 28, height: 28)
+            WaterGlassIcon(isFilled: isFilled, size: 28)
                 .scaleEffect(scale)
         }
         .buttonStyle(.plain)

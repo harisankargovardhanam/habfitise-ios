@@ -66,7 +66,7 @@ enum HealthKitServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .proRequired:
-            "Apple Health sync requires Habfitise Pro."
+            "Apple Health sync requires \(AppConstants.proProductName)."
         case .notAvailable:
             "HealthKit is not available on this device."
         }

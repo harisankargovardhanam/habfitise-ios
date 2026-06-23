@@ -1,12 +1,13 @@
 import Foundation
 
 enum AppConstants {
-    static let appName = "Habfitise"
+    static let appName = "VAYA"
+    static var proProductName: String { "\(appName) Pro" }
     static let minimumIOSVersion = "17.0"
 
     /// When true, all data stays on-device (SwiftData). Supabase auth, sync, and edge functions are skipped.
     enum Backend {
-        static let useLocalOnly = true
+        static let useLocalOnly = false
     }
 
     enum Supabase {
@@ -26,6 +27,11 @@ enum AppConstants {
 
     enum UserDefaultsKeys {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+
+        /// Per-account onboarding completion (Supabase `userId`).
+        static func onboardingCompleted(for userId: String) -> String {
+            "onboardingCompleted_\(userId)"
+        }
         static let dailyWaterGoalML = "dailyWaterGoalML"
         static let lastSuccessfulSyncAt = "lastSuccessfulSyncAt"
         static let localUserId = "localUserId"
@@ -34,17 +40,23 @@ enum AppConstants {
         static let generatedWorkoutPlanJSON = "generatedWorkoutPlanJSON"
         static let dismissedWorkoutSuggestion = "dismissedWorkoutSuggestion"
         static let preferredWorkoutTime = "preferredWorkoutTime"
+        static let notificationsEnabled = "notificationsEnabled"
     }
 
     enum Notifications {
         static let workoutReminderCategory = "WORKOUT_REMINDER"
         static let missedWorkoutCategory = "MISSED_WORKOUT"
+        static let habitReminderCategory = "HABIT_REMINDER"
+        static let waterReminderCategory = "WATER_REMINDER"
         static let actionStart = "START_WORKOUT"
         static let actionSnooze = "SNOOZE_1HR"
         static let actionPushTomorrow = "PUSH_TOMORROW"
         static let actionSkip = "SKIP_WORKOUT"
         static let userInfoTemplateId = "templateId"
         static let userInfoMissedId = "missedId"
+        static let userInfoHabitId = "habitId"
+        static let userInfoUserId = "userId"
+        static let userInfoNotificationType = "notificationType"
     }
 
     enum Sync {
@@ -61,6 +73,12 @@ enum AppConstants {
         static let defaultDailyGoalML = 2500
         static let cupSizeML = 250
         static let dropLogML = 350
+        /// Minimum spacing between hydration nudges.
+        static let minimumReminderIntervalMinutes = 90
+        /// Default interval when no `WaterGoal` record exists.
+        static let defaultReminderIntervalMinutes = 120
+        /// Max pending hydration reminders scheduled at once.
+        static let maxPendingReminders = 6
     }
 
     enum Auth {
@@ -68,7 +86,7 @@ enum AppConstants {
         static let oauthCallbackScheme = "habfitise"
     }
 
-    /// Paid Apple Developer Program capabilities — off for Personal Team dev.
+    /// Sign In with Apple requires paid Apple Developer Program — off for Personal Team.
     enum Capabilities {
         static let signInWithApple = false
         static let healthKit = false

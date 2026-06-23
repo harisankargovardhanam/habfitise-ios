@@ -195,6 +195,12 @@ struct BuilderDraftExercise: Identifiable, Equatable {
     }
 }
 
+struct WorkoutPRToast: Equatable, Identifiable {
+    let id = UUID()
+    let exerciseName: String
+    let detail: String
+}
+
 struct BuilderSetState: Identifiable, Equatable {
     let id: UUID
     var setNumber: Int

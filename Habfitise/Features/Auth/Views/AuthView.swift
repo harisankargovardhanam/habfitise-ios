@@ -6,20 +6,20 @@ struct AuthView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
     @State private var viewModel = AuthViewModel()
+    @State private var appleSignInNonce: String?
 
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
-                theme.colors.headerBackground
+                theme.colors.background
                     .ignoresSafeArea()
 
                 VStack {
                     Spacer()
 
-                    HabfitiseLogoView(height: 120, maxWidth: 240)
+                    HabfitiseLogoView(height: 56, maxWidth: 220)
                         .padding(.horizontal, HabfitiseSpacing.xl)
 
                     Spacer()
@@ -31,15 +31,18 @@ struct AuthView: View {
                     Spacer(minLength: 0)
 
                     AuthBottomCard {
-                        if AppConstants.Backend.useLocalOnly {
-                            localOnlyCard
-                        } else {
-                            cloudAuthCard
-                        }
+                        cloudAuthCard
                     }
                     .frame(minHeight: geometry.size.height * 0.5)
                 }
                 .ignoresSafeArea(edges: .bottom)
+
+                if viewModel.isLoading {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .tint(theme.colors.accentGreen)
+                }
             }
         }
         .onAppear {
@@ -49,36 +52,35 @@ struct AuthView: View {
         }
     }
 
-    private var localOnlyCard: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.xxl) {
-            localOnlyHeader
-
-            Text("Your workouts, habits, and tasks are saved on this device.")
-                .font(HabfitiseTypography.subheadline)
-                .foregroundStyle(theme.colors.textSecondary)
-
-            HabfitisePrimaryButton(title: "Get started") {
-                viewModel.continueLocally(appState: appState, context: modelContext)
-            }
-        }
-    }
-
     private var cloudAuthCard: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: HabfitiseSpacing.xxl) {
                 header
 
-                if AppConstants.Capabilities.signInWithApple {
-                    AppleSignInButtonView { result in
-                        handleAppleSignIn(result)
-                    }
-                    .disabled(viewModel.isLoading)
+                if !viewModel.isSupabaseConfigured {
+                    supabaseSetupBanner
                 }
 
-                GoogleSignInButton(isEnabled: !viewModel.isLoading) {
+                if AppConstants.Capabilities.signInWithApple {
+                    SignInWithAppleButton(.signIn) { request in
+                        let nonce = AuthNonce.random()
+                        appleSignInNonce = nonce
+                        request.requestedScopes = [.email, .fullName]
+                        request.nonce = AuthNonce.sha256(nonce)
+                    } onCompletion: { result in
+                        handleAppleSignIn(result)
+                    }
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: HabfitiseRadius.lg))
+                    .disabled(viewModel.isLoading || !viewModel.isSupabaseConfigured)
+                }
+
+                GoogleSignInButton(
+                    isEnabled: !viewModel.isLoading && viewModel.isSupabaseConfigured
+                ) {
                     Task {
                         await viewModel.signInWithGoogle(
-                            webAuthenticationSession: webAuthenticationSession,
                             appState: appState,
                             context: modelContext
                         )
@@ -97,7 +99,7 @@ struct AuthView: View {
 
                 HabfitisePrimaryButton(
                     title: viewModel.isSignUpMode ? "Create account" : "Sign in",
-                    isEnabled: !viewModel.isLoading
+                    isEnabled: !viewModel.isLoading && viewModel.isSupabaseConfigured
                 ) {
                     Task { await submitEmailAuth() }
                 }
@@ -119,24 +121,24 @@ struct AuthView: View {
         }
     }
 
-    private var localOnlyHeader: some View {
+    private var header: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            HabfitiseLogoView(height: 28)
-
-            Text("Start building your plan")
+            Text("Sign in to continue")
                 .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(theme.colors.textSecondary)
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            HabfitiseLogoView(height: 28)
-
-            Text("Sign in to continue")
-                .font(.system(size: 15, weight: .regular, design: .rounded))
-                .foregroundStyle(theme.colors.textSecondary)
-        }
+    private var supabaseSetupBanner: some View {
+        Text("Add SUPABASE_URL and SUPABASE_ANON_KEY to Config/Secrets.xcconfig to enable sign in.")
+            .font(HabfitiseTypography.caption)
+            .foregroundStyle(theme.colors.danger)
+            .padding(HabfitiseSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: HabfitiseRadius.md)
+                    .fill(theme.colors.fieldBackground)
+            )
     }
 
     private var emailFields: some View {
@@ -168,10 +170,13 @@ struct AuthView: View {
             case let .success(authorization):
                 await viewModel.signInWithApple(
                     authorization: authorization,
+                    rawNonce: appleSignInNonce,
                     appState: appState,
                     context: modelContext
                 )
+                appleSignInNonce = nil
             case let .failure(error):
+                appleSignInNonce = nil
                 if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
                     viewModel.errorMessage = error.localizedDescription
                 }

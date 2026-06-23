@@ -14,7 +14,6 @@ final class WorkoutBuilderViewModel {
 
     let userId: String
     let template: WorkoutTemplate?
-    let resumedSession: WorkoutSession?
 
     var workoutType: WorkoutType
     var workoutName: String
@@ -42,6 +41,7 @@ final class WorkoutBuilderViewModel {
     var restSecondsRemaining = 0
     var restDuration = 90
     var flashSetId: UUID?
+    var prToast: WorkoutPRToast?
     var editingSetField: SetField?
     var cardioTimerExerciseId: UUID?
     var cardioTimerRunning = false
@@ -66,37 +66,28 @@ final class WorkoutBuilderViewModel {
 
     init(
         userId: String,
-        type: WorkoutType,
-        template: WorkoutTemplate?,
-        session: WorkoutSession?
+        type: WorkoutType?,
+        template: WorkoutTemplate?
     ) {
         self.userId = userId
         self.template = template
-        self.resumedSession = session
-        self.workoutType = type
-        self.showTypeSelector = template == nil && session == nil
-        self.sessionId = session?.id ?? UUID()
+        self.workoutType = template?.type ?? type ?? .weights
+        self.showTypeSelector = template == nil
+        self.sessionId = UUID()
 
         if let template {
             workoutName = template.name
             sessionNotes = template.notes
+            scheduledDate = template.nextScheduledAt ?? .now
             exercises = template.exercises
                 .sorted { $0.order < $1.order }
                 .map { BuilderDraftExercise(from: $0) }
-        } else if let session {
-            workoutName = session.name
-            workoutType = session.type
-            sessionNotes = session.notes
-            exercises = []
-            startedAt = session.startedAt
-            elapsedSeconds = max(session.durationSeconds, Int(Date().timeIntervalSince(session.startedAt)))
         } else {
             workoutName = ""
             sessionNotes = ""
+            scheduledDate = .now
             exercises = []
         }
-
-        scheduledDate = .now
     }
 
     var canStartSetup: Bool {
@@ -148,12 +139,7 @@ final class WorkoutBuilderViewModel {
     }
 
     func onAppear(context: ModelContext) {
-        if let resumedSession {
-            screenPhase = .active
-            startedAt = resumedSession.startedAt
-            loadResumedSets(context: context, session: resumedSession)
-            startElapsedTimer()
-        }
+        _ = context
     }
 
     func onDisappear() {
@@ -230,6 +216,32 @@ final class WorkoutBuilderViewModel {
     func updateExercise(_ exercise: BuilderDraftExercise) {
         guard let index = exercises.firstIndex(where: { $0.id == exercise.id }) else { return }
         exercises[index] = exercise
+    }
+
+    @discardableResult
+    func saveAsTemplate(context: ModelContext, syncService: SyncService) -> Bool {
+        guard canStartSetup else { return false }
+        reindexExercises()
+
+        let savedTemplate: WorkoutTemplate
+        if let template {
+            updateLoadedTemplate(template, context: context)
+            savedTemplate = template
+        } else {
+            savedTemplate = createTemplate(context: context)
+        }
+
+        do {
+            try context.save()
+        } catch {
+            return false
+        }
+
+        refreshWorkoutReminder(for: savedTemplate)
+        Task {
+            await syncService.syncAll(modelContext: context, userId: userId)
+        }
+        return true
     }
 
     func startActiveSession(context: ModelContext) {
@@ -341,7 +353,7 @@ final class WorkoutBuilderViewModel {
     func adjustDistance(setId: UUID, exerciseId: UUID, delta: Double) {
         mutateSet(setId: setId, exerciseId: exerciseId) {
             let current = $0.distanceKm ?? 0
-            $0.distanceKm = max(0, (current + delta * 10).rounded() / 10)
+            $0.distanceKm = max(0, ((current + delta) * 10).rounded() / 10)
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
@@ -380,13 +392,13 @@ final class WorkoutBuilderViewModel {
             context.insert(pr)
             sets[index].isPersonalRecord = true
             setStates[exerciseId] = sets
-            sessionPRs.append(
-                WorkoutCompletePR(
-                    exerciseName: exercise.name,
-                    newValue: formatPRValue(pr),
-                    previousValue: previousWeight.map { formatPRValue($0) }
-                )
+            let prDetail = formatPRValue(pr)
+            recordSessionPR(
+                exerciseName: exercise.name,
+                newValue: prDetail,
+                previousValue: previousWeight.map { formatPRValue($0) }
             )
+            showPRToast(exerciseName: exercise.name, detail: prDetail)
         }
 
         if exercise.type == .weighted, let weight = row.weightKg, let reps = row.reps, reps > 0 {
@@ -427,6 +439,13 @@ final class WorkoutBuilderViewModel {
             return
         }
 
+        let allSetsDone = (setStates[exerciseId] ?? []).allSatisfy(\.isCompleted)
+        if allSetsDone && hasNextIncompleteExercise {
+            restTask?.cancel()
+            showRestTimer = false
+            return
+        }
+
         guard rest > 0 else { return }
         startRest(seconds: rest)
     }
@@ -450,20 +469,14 @@ final class WorkoutBuilderViewModel {
         cardioTimerExerciseId = exerciseId
         cardioTimerSeconds = 0
         cardioTimerRunning = true
-        cardioTimerTask?.cancel()
-        cardioTimerTask = Task {
-            while !Task.isCancelled, cardioTimerRunning {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
-                cardioTimerSeconds += 1
-            }
-        }
+        runCardioTimerTickLoop()
     }
 
     func toggleCardioTimer() {
+        guard cardioTimerExerciseId != nil else { return }
         cardioTimerRunning.toggle()
-        if cardioTimerRunning, cardioTimerExerciseId != nil {
-            startCardioTimer(for: cardioTimerExerciseId!)
+        if cardioTimerRunning {
+            runCardioTimerTickLoop()
         } else {
             cardioTimerTask?.cancel()
         }
@@ -476,6 +489,17 @@ final class WorkoutBuilderViewModel {
         sets[firstIndex].durationSeconds = cardioTimerSeconds
         setStates[exerciseId] = sets
         cardioTimerExerciseId = nil
+    }
+
+    private func runCardioTimerTickLoop() {
+        cardioTimerTask?.cancel()
+        cardioTimerTask = Task {
+            while !Task.isCancelled, cardioTimerRunning {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                cardioTimerSeconds += 1
+            }
+        }
     }
 
     func prepareEndWorkout() {
@@ -494,7 +518,7 @@ final class WorkoutBuilderViewModel {
             totalVolumeKg: volume,
             totalSets: completedSets.count,
             sessionNotes: sessionNotes,
-            newPRs: sessionPRs,
+            newPRs: sessionPRs.dedupedByExercise(),
             estimatedCalories: WorkoutAnalytics.estimatedCalories(
                 workoutType: workoutType,
                 durationSeconds: elapsedSeconds,
@@ -529,35 +553,36 @@ final class WorkoutBuilderViewModel {
             synced: false
         )
         context.insert(session)
+        session.markPendingSync()
 
         if let template {
             template.lastPerformedAt = .now
             if result.scheduleRepeat {
                 template.nextScheduledAt = repeatDate(for: result)
                 template.repeatSchedule = result.repeatSchedule
+            } else {
+                applyScheduledDate(to: template)
             }
+            template.markPendingSync()
         } else if result.scheduleRepeat {
             saveRepeatTemplate(context: context, result: result, payload: payload)
         }
 
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            return
+        }
 
         if let template {
-            Task {
-                if template.nextScheduledAt != nil {
-                    await NotificationService.shared.scheduleWorkoutReminder(template: template)
-                } else {
-                    await NotificationService.shared.cancelWorkoutReminder(templateId: template.id)
-                }
-            }
-        } else if result.scheduleRepeat, let newTemplate = fetchLatestTemplate(
-            userId: userId,
-            name: payload.workoutName,
-            context: context
-        ) {
-            Task {
-                await NotificationService.shared.scheduleWorkoutReminder(template: newTemplate)
-            }
+            refreshWorkoutReminder(for: template)
+        } else if result.scheduleRepeat,
+                  let newTemplate = fetchLatestTemplate(
+                    userId: userId,
+                    name: payload.workoutName,
+                    context: context
+                  ) {
+            refreshWorkoutReminder(for: newTemplate)
         }
 
         Task {
@@ -592,27 +617,95 @@ final class WorkoutBuilderViewModel {
             notes: result.notes,
             synced: false
         )
+        newTemplate.markPendingSync()
         context.insert(newTemplate)
+        insertExerciseTemplates(for: newTemplate, context: context)
+    }
 
-        for exercise in exercises {
-            let row = ExerciseTemplate(
-                templateId: newTemplate.id,
-                name: exercise.name,
-                category: exercise.category,
-                type: exercise.type,
-                defaultSets: exercise.defaultSets,
-                defaultReps: exercise.defaultReps,
-                defaultWeightKg: exercise.defaultWeightKg,
-                defaultDurationSeconds: exercise.defaultDurationSeconds,
-                defaultDistanceKm: exercise.defaultDistanceKm,
-                order: exercise.order,
-                notes: exercise.notes,
-                supersetGroupId: exercise.supersetGroupId,
-                template: newTemplate
-            )
-            context.insert(row)
-            newTemplate.exercises.append(row)
+    private func createTemplate(context: ModelContext) -> WorkoutTemplate {
+        let newTemplate = WorkoutTemplate(
+            userId: userId,
+            name: trimmedName,
+            type: workoutType,
+            exercises: [],
+            estimatedMinutes: estimatedDraftMinutes,
+            nextScheduledAt: futureScheduledDate(),
+            notes: sessionNotes,
+            synced: false
+        )
+        newTemplate.markPendingSync()
+        context.insert(newTemplate)
+        insertExerciseTemplates(for: newTemplate, context: context)
+        return newTemplate
+    }
+
+    private func updateLoadedTemplate(_ template: WorkoutTemplate, context: ModelContext) {
+        template.name = trimmedName
+        template.type = workoutType
+        template.notes = sessionNotes
+        template.estimatedMinutes = estimatedDraftMinutes
+        applyScheduledDate(to: template)
+        replaceTemplateExercises(on: template, context: context)
+        template.markPendingSync()
+    }
+
+    private var estimatedDraftMinutes: Int {
+        max(30, min(120, exercises.count * 12))
+    }
+
+    private func futureScheduledDate() -> Date? {
+        scheduledDate > .now ? scheduledDate : nil
+    }
+
+    private func applyScheduledDate(to template: WorkoutTemplate) {
+        template.nextScheduledAt = futureScheduledDate()
+    }
+
+    private func refreshWorkoutReminder(for template: WorkoutTemplate) {
+        Task {
+            if template.nextScheduledAt != nil {
+                await NotificationService.shared.scheduleWorkoutReminder(template: template)
+            } else {
+                await NotificationService.shared.cancelWorkoutReminder(templateId: template.id)
+            }
         }
+    }
+
+    private func insertExerciseTemplates(for template: WorkoutTemplate, context: ModelContext) {
+        for exercise in exercises.sorted(by: { $0.order < $1.order }) {
+            let row = makeExerciseTemplate(from: exercise, template: template)
+            context.insert(row)
+            template.exercises.append(row)
+        }
+    }
+
+    private func replaceTemplateExercises(on template: WorkoutTemplate, context: ModelContext) {
+        for old in template.exercises {
+            context.delete(old)
+        }
+        template.exercises.removeAll()
+        insertExerciseTemplates(for: template, context: context)
+    }
+
+    private func makeExerciseTemplate(
+        from exercise: BuilderDraftExercise,
+        template: WorkoutTemplate
+    ) -> ExerciseTemplate {
+        ExerciseTemplate(
+            templateId: template.id,
+            name: exercise.name,
+            category: exercise.category,
+            type: exercise.type,
+            defaultSets: exercise.defaultSets,
+            defaultReps: exercise.defaultReps,
+            defaultWeightKg: exercise.defaultWeightKg,
+            defaultDurationSeconds: exercise.defaultDurationSeconds,
+            defaultDistanceKm: exercise.defaultDistanceKm,
+            order: exercise.order,
+            notes: exercise.notes,
+            supersetGroupId: exercise.supersetGroupId,
+            template: template
+        )
     }
 
     private func repeatDate(for result: WorkoutCompleteResult) -> Date? {
@@ -630,6 +723,29 @@ final class WorkoutBuilderViewModel {
             return calendar.date(byAdding: .day, value: 7, to: .now)
         case .custom:
             return result.customRepeatDate
+        }
+    }
+
+    private func recordSessionPR(exerciseName: String, newValue: String, previousValue: String?) {
+        guard !sessionPRs.contains(where: { $0.exerciseName == exerciseName }) else { return }
+        sessionPRs.append(
+            WorkoutCompletePR(
+                exerciseName: exerciseName,
+                newValue: newValue,
+                previousValue: previousValue
+            )
+        )
+    }
+
+    private func showPRToast(exerciseName: String, detail: String) {
+        let toast = WorkoutPRToast(exerciseName: exerciseName, detail: detail)
+        prToast = toast
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Task {
+            try? await Task.sleep(for: .seconds(2.8))
+            if prToast?.id == toast.id {
+                prToast = nil
+            }
         }
     }
 
@@ -718,35 +834,6 @@ final class WorkoutBuilderViewModel {
             }
             setStates[exercise.id] = sets
             restDuration = exercise.restSeconds
-        }
-    }
-
-    private func loadResumedSets(context: ModelContext, session: WorkoutSession) {
-        let sessionIdConst = session.id
-        let descriptor = FetchDescriptor<ExerciseSet>(
-            predicate: #Predicate { $0.sessionId == sessionIdConst },
-            sortBy: [SortDescriptor(\.setNumber)]
-        )
-        let stored = (try? context.fetch(descriptor)) ?? []
-        // Group by exercise name — simplified resume
-        let grouped = Dictionary(grouping: stored, by: \.exerciseName)
-        exercises = grouped.keys.sorted().enumerated().map { index, name in
-            BuilderDraftExercise(name: name, order: index)
-        }
-        for exercise in exercises {
-            let rows = grouped[exercise.name] ?? []
-            setStates[exercise.id] = rows.map { row in
-                BuilderSetState(
-                    setNumber: row.setNumber,
-                    reps: row.reps,
-                    weightKg: row.weightKg,
-                    durationSeconds: row.durationSeconds,
-                    distanceKm: row.distanceKm,
-                    isWarmup: row.isWarmup,
-                    isCompleted: true,
-                    isPersonalRecord: row.isPersonalRecord
-                )
-            }
         }
     }
 

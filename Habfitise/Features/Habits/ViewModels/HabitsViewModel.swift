@@ -8,12 +8,14 @@ import UIKit
 @MainActor
 final class HabitsViewModel {
     var showAddHabit = false
+    var habitPendingDelete: Habit?
+    var showDeleteConfirm = false
     var waterCelebrationActive = false
     var animatingCupIndex: Int?
 
     private(set) var waterTodayML = 0
     private(set) var waterGoalML = AppConstants.Water.defaultDailyGoalML
-    private(set) var nextReminderMinutes = 45
+    private(set) var nextReminderMinutes = AppConstants.Water.defaultReminderIntervalMinutes
     private(set) var hasLoadedHabits = false
 
     static let waterCupVolumeML = 350
@@ -49,10 +51,10 @@ final class HabitsViewModel {
 
         if let waterGoal {
             waterGoalML = waterGoal.dailyGoalMl
-            nextReminderMinutes = max(waterGoal.reminderIntervalMinutes / 2, 15)
+            nextReminderMinutes = waterGoal.reminderIntervalMinutes
         } else {
             waterGoalML = AppConstants.Water.defaultDailyGoalML
-            nextReminderMinutes = 45
+            nextReminderMinutes = AppConstants.Water.defaultReminderIntervalMinutes
         }
 
         _ = habits
@@ -149,6 +151,10 @@ final class HabitsViewModel {
         context.insert(completion)
         try? context.save()
 
+        Task {
+            await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
+        }
+
         let newStreak = streak(for: habit.id)
         if HabitStreakMilestone.isMilestone(newStreak) {
             return newStreak
@@ -177,6 +183,9 @@ final class HabitsViewModel {
             context.delete(completion)
         }
         try? context.save()
+        Task {
+            await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
+        }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
@@ -194,6 +203,9 @@ final class HabitsViewModel {
             waterTodayML += amountMl
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task {
+            await NotificationService.shared.rescheduleWaterReminders(userId: userId, context: context)
+        }
     }
 
     func addWater(at cupIndex: Int, userId: String, context: ModelContext, cupCount: Int = waterCupCount) {
@@ -222,6 +234,30 @@ final class HabitsViewModel {
         }
     }
 
+    func requestDelete(_ habit: Habit) {
+        habitPendingDelete = habit
+        showDeleteConfirm = true
+    }
+
+    func deleteHabit(_ habit: Habit, context: ModelContext) {
+        let habitIdConst = habit.id
+        let completionDescriptor = FetchDescriptor<HabitCompletion>(
+            predicate: #Predicate { $0.habitId == habitIdConst }
+        )
+        let completions = (try? context.fetch(completionDescriptor)) ?? []
+        completions.forEach { context.delete($0) }
+
+        context.delete(habit)
+        try? context.save()
+
+        Task {
+            await NotificationService.shared.cancelHabitReminder(habitId: habitIdConst)
+        }
+
+        habitPendingDelete = nil
+        showDeleteConfirm = false
+    }
+
     func saveHabit(
         name: String,
         frequency: String,
@@ -243,5 +279,8 @@ final class HabitsViewModel {
         )
         context.insert(habit)
         try? context.save()
+        Task {
+            await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
+        }
     }
 }

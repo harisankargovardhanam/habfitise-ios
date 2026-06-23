@@ -3,67 +3,73 @@ import SwiftUI
 struct LiquidGlassTabBar: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(TabBarState.self) private var tabBarState
+    @Namespace private var tabIndicatorNamespace
+
+    private var usesLightTabChrome: Bool {
+        theme.preferredColorScheme == .light
+    }
 
     var body: some View {
-        HStack {
-            Spacer(minLength: 0)
-
-            HStack(spacing: MainTab.allCases.count > 4 ? TabBarLayout.tabSpacingCompact : TabBarLayout.tabSpacing) {
-                ForEach(MainTab.allCases) { tab in
-                    tabItem(tab)
-                }
+        HStack(spacing: 0) {
+            ForEach(MainTab.allCases) { tab in
+                tabItem(tab)
+                    .frame(maxWidth: .infinity)
             }
-            .padding(TabBarLayout.capsulePadding)
-            .background { glassBackground }
-            .clipShape(Capsule())
-
-            Spacer(minLength: 0)
         }
+        .padding(.horizontal, compactBar ? TabBarLayout.tabSpacingCompact : TabBarLayout.tabSpacing)
+        .padding(.vertical, TabBarLayout.capsulePadding)
+        .background { glassBackground }
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.18), radius: 20, y: 10)
         .padding(.horizontal, TabBarLayout.edgeInset)
-        .padding(.bottom, TabBarLayout.edgeInset)
-        .animation(HabfitiseAnimation.tabTransition, value: tabBarState.activeTab)
-        .animation(HabfitiseAnimation.tabTransition, value: tabBarState.isVisible)
+    }
+
+    private var compactBar: Bool {
+        MainTab.allCases.count > 4
     }
 
     @ViewBuilder
     private func tabItem(_ tab: MainTab) -> some View {
         let isActive = tabBarState.activeTab == tab
-        let compactBar = MainTab.allCases.count > 4
+        let pillWidth = compactBar ? TabBarLayout.activePillWidthCompact : TabBarLayout.activePillWidth
+        let pillHeight = compactBar ? TabBarLayout.activePillHeightCompact : TabBarLayout.activePillHeight
+        let iconPointSize = compactBar ? TabBarLayout.iconSizeCompact : TabBarLayout.iconSize
 
         Button {
-            tabBarState.selectTab(tab)
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
+                tabBarState.selectTab(tab)
+            }
         } label: {
-            HStack(spacing: compactBar ? 7 : 9) {
-                Image(systemName: tab.systemImage)
-                    .font(.system(
-                        size: compactBar ? TabBarLayout.iconSizeCompact : TabBarLayout.iconSize,
-                        weight: .semibold
-                    ))
-                    .habfitiseTabBounce(isActive: isActive)
-
-                if isActive {
-                    Text(tab.title)
-                        .font(.system(size: TabBarLayout.labelSize, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            Image(systemName: tab.systemImage)
+                .font(.system(size: iconPointSize, weight: isActive ? .semibold : .regular))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(tabIconColor(isActive: isActive))
+                .frame(width: pillWidth, height: pillHeight)
+                .background {
+                    if isActive {
+                        Capsule()
+                            .fill(activePillFill)
+                            .matchedGeometryEffect(id: "tabIndicator", in: tabIndicatorNamespace)
+                    }
                 }
-            }
-            .foregroundStyle(isActive ? theme.colors.headerBackground : theme.colors.textOnBackground.opacity(0.88))
-            .padding(.horizontal, isActive
-                ? (compactBar ? TabBarLayout.itemPaddingHActiveCompact : TabBarLayout.itemPaddingHActive)
-                : (compactBar ? TabBarLayout.itemPaddingHInactiveCompact : TabBarLayout.itemPaddingHInactive))
-            .padding(.vertical, compactBar ? TabBarLayout.itemPaddingVCompact : TabBarLayout.itemPaddingV)
-            .background {
-                if isActive {
-                    Capsule()
-                        .fill(Color.white)
-                        .shadow(color: theme.colors.headerBackground.opacity(0.2), radius: 10, y: 4)
-                }
-            }
         }
-        .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.96))
+        .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.94))
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private func tabIconColor(isActive: Bool) -> Color {
+        if usesLightTabChrome {
+            return Color.black.opacity(isActive ? 1 : 0.45)
+        }
+        return Color.white.opacity(isActive ? 1 : 0.58)
+    }
+
+    private var activePillFill: Color {
+        if usesLightTabChrome {
+            return Color.black.opacity(0.08)
+        }
+        return Color.black.opacity(0.44)
     }
 
     private var glassBackground: some View {
@@ -71,11 +77,12 @@ struct LiquidGlassTabBar: View {
             .fill(.ultraThinMaterial)
             .overlay {
                 Capsule()
-                    .fill(theme.colors.headerBackground.opacity(0.72))
-            }
-            .overlay {
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(
+                        usesLightTabChrome
+                            ? Color.black.opacity(0.08)
+                            : Color.white.opacity(0.24),
+                        lineWidth: 0.5
+                    )
             }
     }
 }
@@ -97,6 +104,7 @@ struct MainTabView: View {
             .background(theme.colors.background.ignoresSafeArea())
             .onAppear {
                 runMissedWorkoutDetection()
+                rescheduleNotifications()
                 guard !AppConstants.Backend.useLocalOnly else { return }
                 syncService.configure(modelContext: modelContext) {
                     appState.authenticatedUserId
@@ -112,6 +120,7 @@ struct MainTabView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     runMissedWorkoutDetection()
+                    rescheduleNotifications()
                 }
                 guard !AppConstants.Backend.useLocalOnly else { return }
                 if newPhase == .active {
@@ -151,41 +160,45 @@ struct MainTabView: View {
         )
     }
 
+    private func rescheduleNotifications() {
+        guard let userId = appState.authenticatedUserId else { return }
+        Task {
+            await NotificationService.shared.rescheduleAllReminders(
+                userId: userId,
+                context: modelContext
+            )
+        }
+    }
+
     @ViewBuilder
     private var tabShell: some View {
         legacyTabView
     }
 
     private var legacyTabView: some View {
-        ZStack(alignment: .bottom) {
-            Group {
-                switch tabBarState.activeTab {
-                case .home:
-                    HomeView()
-                case .habits:
-                    HabitsView()
-                case .tasks:
-                    TasksView()
-                case .workout:
-                    WorkoutsView()
-                case .progress:
-                    ProgressDashboardView()
-                }
+        Group {
+            switch tabBarState.activeTab {
+            case .home:
+                HomeView()
+            case .habits:
+                HabitsView()
+            case .tasks:
+                TasksView()
+            case .workout:
+                WorkoutsView()
+            case .progress:
+                ProgressDashboardView()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(tabTransition)
-            .id(tabBarState.activeTab)
-
-            LiquidGlassTabBar()
         }
-        .animation(HabfitiseAnimation.tabTransition, value: tabBarState.activeTab)
-    }
-
-    private var tabTransition: AnyTransition {
-        .asymmetric(
-            insertion: .move(edge: tabBarState.tabTransitionForward ? .trailing : .leading),
-            removal: .move(edge: tabBarState.tabTransitionForward ? .leading : .trailing)
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            LiquidGlassTabBar()
+                .padding(.bottom, TabBarLayout.floatingBottomInset)
+                .offset(y: tabBarState.isVisible ? 0 : TabBarLayout.hideOffset)
+                .opacity(tabBarState.isVisible ? 1 : 0)
+                .animation(.spring(response: 0.38, dampingFraction: 0.84), value: tabBarState.isVisible)
+                .allowsHitTesting(tabBarState.isVisible)
+        }
     }
 }
 

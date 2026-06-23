@@ -26,7 +26,7 @@ struct WorkoutStreakCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if stats.hasActiveStreak {
-                Text("🔥 \(stats.currentStreak) workout streak")
+                Text("🔥 \(HabfitiseCopy.counted(stats.currentStreak, "workout", plural: "workouts")) streak")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(theme.colors.percentageOrange)
                 Text("Keep it going!")
@@ -62,7 +62,7 @@ struct WorkoutStreakCard: View {
                     Text("This month: \(stats.monthCompleted)/\(stats.monthPlanned) planned")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(theme.colors.textSecondary)
-                    Text("Personal best: \(stats.bestStreak) days")
+                    Text("Personal best: \(HabfitiseCopy.counted(stats.bestStreak, "day"))")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(theme.colors.textTertiary)
                 }
@@ -316,81 +316,32 @@ struct WorkoutStartWeightPrompt: View {
         VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
             BentoCardHeader(title: "Log Today's Weight", accent: .bodyWeight)
 
-            HStack(alignment: .center, spacing: HabfitiseSpacing.md) {
-                VStack(alignment: .leading, spacing: BentoCardStyle.compactContentSpacing) {
-                    HStack(spacing: HabfitiseSpacing.sm) {
-                        TextField("kg", text: $weightText)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.colors.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(theme.colors.fieldBackground)
-                            )
-                            .frame(maxWidth: 88)
+            HStack(spacing: HabfitiseSpacing.sm) {
+                TextField("kg", text: $weightText)
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(theme.colors.fieldBackground)
+                    )
+                    .frame(maxWidth: 88)
 
-                        Button("Save", action: onSave)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.colors.accentGreen)
-                    }
+                Button("Save", action: onSave)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.accentGreen)
 
-                    Button("Not now", action: onDismiss)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(theme.colors.textSecondary)
-                }
-
-                Spacer(minLength: 8)
-
-                VStack(alignment: .trailing, spacing: 6) {
-                    BentoMicroSparkline(accent: theme.colors.accentGreen)
-                        .frame(width: 108, height: 36)
-
-                    Capsule()
-                        .fill(theme.colors.trackBackground)
-                        .frame(width: 108, height: 6)
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(theme.colors.accentGreen.opacity(0.85))
-                                .frame(width: 72, height: 6)
-                        }
-                }
+                Spacer(minLength: 0)
             }
+
+            Button("Not now", action: onDismiss)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(theme.colors.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .bentoCardSurface(compact: true)
-    }
-}
-
-/// Decorative trend line for compact tracking cards.
-struct BentoMicroSparkline: View {
-    let accent: Color
-
-    private let samples: [CGFloat] = [0.72, 0.68, 0.70, 0.66, 0.64, 0.62, 0.58]
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(accent.opacity(0.08))
-
-                Path { path in
-                    for (index, sample) in samples.enumerated() {
-                        let x = geo.size.width * CGFloat(index) / CGFloat(max(samples.count - 1, 1))
-                        let y = geo.size.height * (1 - sample)
-                        if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
-                        } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
-                        }
-                    }
-                }
-                .stroke(accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-            }
-        }
     }
 }
 

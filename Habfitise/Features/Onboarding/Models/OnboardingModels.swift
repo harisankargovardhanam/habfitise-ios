@@ -27,6 +27,11 @@ enum OnboardingGoalOption: String, CaseIterable, Identifiable {
         case .buildHabits: "checkmark.circle.fill"
         }
     }
+
+    /// Goals where current vs target weight and monthly rate apply.
+    var isWeightTargetGoal: Bool {
+        self == .loseWeight || self == .buildMuscle
+    }
 }
 
 // MARK: - Weight & Schedule Enums
@@ -148,5 +153,5 @@ enum Weekday: Int, CaseIterable, Identifiable {
 
 struct OnboardingGoalSummary {
     let headline: String
-    let monthlyRate: String
+    let detail: String?
 }

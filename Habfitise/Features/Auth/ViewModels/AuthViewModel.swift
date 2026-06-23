@@ -18,6 +18,10 @@ final class AuthViewModel {
         return false
     }
 
+    var isSupabaseConfigured: Bool {
+        SupabaseManager.shared.isConfigured
+    }
+
     // MARK: - Email
 
     func signInWithEmail(appState: AppState, context: ModelContext) async {
@@ -28,7 +32,7 @@ final class AuthViewModel {
     }
 
     func signUpWithEmail(appState: AppState, context: ModelContext) async {
-        guard validateEmailCredentials() else { return }
+        guard validateEmailCredentials(requireSignUpRules: true) else { return }
         await performAuth(appState: appState, context: context) {
             try await SupabaseManager.shared.signUpWithEmail(email: email, password: password)
             if SupabaseManager.shared.cachedSession == nil {
@@ -41,6 +45,7 @@ final class AuthViewModel {
 
     func signInWithApple(
         authorization: ASAuthorization,
+        rawNonce: String?,
         appState: AppState,
         context: ModelContext
     ) async {
@@ -60,24 +65,19 @@ final class AuthViewModel {
         let fullName = credential.fullName?.formatted()
 
         await performAuth(appState: appState, context: context) {
-            try await SupabaseManager.shared.signInWithApple(idToken: idToken, fullName: fullName)
+            try await SupabaseManager.shared.signInWithApple(
+                idToken: idToken,
+                fullName: fullName,
+                nonce: rawNonce
+            )
         }
     }
 
     // MARK: - Google
 
-    func signInWithGoogle(
-        webAuthenticationSession: WebAuthenticationSession,
-        appState: AppState,
-        context: ModelContext
-    ) async {
+    func signInWithGoogle(appState: AppState, context: ModelContext) async {
         await performAuth(appState: appState, context: context) {
-            try await SupabaseManager.shared.signInWithGoogle { url in
-                try await webAuthenticationSession.authenticate(
-                    using: url,
-                    callbackURLScheme: AppConstants.Auth.oauthCallbackScheme
-                )
-            }
+            try await SupabaseManager.shared.signInWithGoogle()
         }
     }
 
@@ -89,9 +89,11 @@ final class AuthViewModel {
 
         do {
             if AppConstants.Backend.useLocalOnly {
+                NotificationService.shared.resetAllReminders()
                 LocalSessionService.clearSession()
             } else {
                 try await SupabaseManager.shared.signOut()
+                NotificationService.shared.resetAllReminders()
             }
             appState.signOut()
             authState = .unauthenticated
@@ -123,6 +125,11 @@ final class AuthViewModel {
         context: ModelContext,
         operation: () async throws -> Void
     ) async {
+        guard SupabaseManager.shared.isConfigured else {
+            setError(SupabaseManagerError.notConfigured.localizedDescription)
+            return
+        }
+
         authState = .loading
         errorMessage = nil
 
@@ -144,12 +151,24 @@ final class AuthViewModel {
         }
     }
 
-    private func validateEmailCredentials() -> Bool {
-        guard !email.trimmingCharacters(in: .whitespaces).isEmpty,
-              !password.isEmpty else {
+    private func validateEmailCredentials(requireSignUpRules: Bool = false) -> Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedEmail.isEmpty, !password.isEmpty else {
             setError("Enter email and password.")
             return false
         }
+
+        guard trimmedEmail.contains("@"), trimmedEmail.contains(".") else {
+            setError("Enter a valid email address.")
+            return false
+        }
+
+        if requireSignUpRules, password.count < 6 {
+            setError("Password must be at least 6 characters.")
+            return false
+        }
+
         return true
     }
 

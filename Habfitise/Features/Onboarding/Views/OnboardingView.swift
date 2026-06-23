@@ -4,18 +4,19 @@ import SwiftData
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
     @Environment(SyncService.self) private var syncService
+    @Environment(ThemeManager.self) private var themeManager
     @Environment(\.modelContext) private var modelContext
-    @State private var viewModel = OnboardingViewModel()
+    @State private var viewModel: OnboardingViewModel
+
+    init(skipWelcome: Bool = false) {
+        _viewModel = State(initialValue: OnboardingViewModel(skipWelcome: skipWelcome))
+    }
 
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
-                OnboardingPalette.background
+                themeManager.colors.background
                     .ignoresSafeArea()
-
-                OnboardingWatermark()
-                    .padding(.top, 8)
-                    .padding(.trailing, 16)
 
                 if viewModel.step == 0 {
                     welcomeScreen
@@ -25,47 +26,53 @@ struct OnboardingView: View {
             }
         }
         .ignoresSafeArea(edges: .bottom)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(themeManager.preferredColorScheme)
     }
 
     // MARK: - Step 1 Welcome (full screen)
 
     private var welcomeScreen: some View {
         VStack(spacing: 0) {
-            Spacer()
+            Spacer(minLength: 0)
 
-            HabfitiseLogoView(height: 120, maxWidth: 240)
-                .padding(.horizontal, 32)
+            VStack(spacing: 8) {
+                HabfitiseLogoView(height: 56, maxWidth: 220)
+                    .padding(.horizontal, 32)
 
-            Text("Your workout, habits, and day — one app.")
-                .font(.system(size: 16, weight: .regular, design: .rounded))
-                .foregroundStyle(OnboardingPalette.textMuted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-                .padding(.top, 8)
+                Text("Your workout, habits, and day — one app.")
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
 
-            Spacer()
-                .frame(height: 32)
+            Spacer(minLength: 0)
 
             VStack(spacing: 12) {
                 OnboardingContinueButton(title: "Get started") {
+                    if AppConstants.Backend.useLocalOnly, appState.authenticatedUserId == nil {
+                        let userId = LocalSessionService.ensureUser()
+                        appState.setAuthenticated(userId: userId, context: modelContext)
+                    }
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         viewModel.nextStep()
                     }
                 }
 
-                Button {
-                    Task { await viewModel.signOutExistingAccount(appState: appState) }
-                } label: {
-                    Text("I have an account")
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .foregroundStyle(OnboardingPalette.accent)
-                        .frame(maxWidth: .infinity)
+                if !AppConstants.Backend.useLocalOnly {
+                    Button {
+                        Task { await viewModel.signOutExistingAccount(appState: appState) }
+                    } label: {
+                        Text("I have an account")
+                            .font(.system(size: 15, weight: .regular, design: .rounded))
+                            .foregroundStyle(OnboardingPalette.accent)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(HabfitiseScalePressButtonStyle())
                 }
-                .buttonStyle(HabfitiseScalePressButtonStyle())
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 48)
+            .safeAreaPadding(.bottom, HabfitiseSpacing.xl)
         }
     }
 
@@ -76,7 +83,7 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
 
             onboardingCard
-                .frame(height: height * 0.65)
+                .frame(height: height * 0.72)
         }
     }
 
@@ -102,12 +109,16 @@ struct OnboardingView: View {
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundStyle(OnboardingPalette.accent.opacity(0.9))
                         }
-
-                        primaryAction
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                 }
+
+                primaryAction
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -147,6 +158,8 @@ struct OnboardingView: View {
                 subtitle: "We'll build your plan around this"
             )
 
+            OnboardingNameField(name: $viewModel.displayName)
+
             VStack(spacing: 10) {
                 ForEach(OnboardingGoalOption.allCases) { goal in
                     OnboardingGoalCard(
@@ -164,7 +177,13 @@ struct OnboardingView: View {
 
     private var weightStep: some View {
         VStack(alignment: .leading, spacing: 24) {
-            OnboardingStepTitle(title: "Set your target")
+            OnboardingStepTitle(title: viewModel.weightStepTitle)
+
+            if viewModel.selectedGoal == .buildHabits {
+                Text("We use your weight for hydration and calorie estimates.")
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundStyle(OnboardingPalette.textSecondary)
+            }
 
             HStack(alignment: .top, spacing: 12) {
                 OnboardingWeightStepper(
@@ -179,16 +198,18 @@ struct OnboardingView: View {
                     .padding(.top, 24)
             }
 
-            OnboardingWeightStepper(
-                label: "Target weight",
-                value: viewModel.displayTargetWeight,
-                unit: viewModel.weightUnit,
-                onDecrement: viewModel.decrementTargetWeight,
-                onIncrement: viewModel.incrementTargetWeight
-            )
+            if viewModel.showsTargetWeight {
+                OnboardingWeightStepper(
+                    label: "Target weight",
+                    value: viewModel.displayTargetWeight,
+                    unit: viewModel.weightUnit,
+                    onDecrement: viewModel.decrementTargetWeight,
+                    onIncrement: viewModel.incrementTargetWeight
+                )
+            }
 
             OnboardingCapsuleToggleGroup(
-                title: "Reach goal by",
+                title: viewModel.timelinePickerTitle,
                 selection: $viewModel.timeline,
                 label: \.label
             )

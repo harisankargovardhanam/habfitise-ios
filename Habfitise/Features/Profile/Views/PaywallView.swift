@@ -27,7 +27,7 @@ struct PaywallView: View {
                             .font(.system(size: 56))
                             .foregroundStyle(theme.colors.accentGreen)
 
-                        Text("Habfitise Pro")
+                        Text(AppConstants.proProductName)
                             .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(theme.colors.textPrimary)
 
@@ -102,7 +102,7 @@ struct PaywallView: View {
                 .padding(.bottom, 32)
             }
             .background(theme.colors.background.ignoresSafeArea())
-            .navigationTitle("Habfitise Pro")
+            .navigationTitle(AppConstants.proProductName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

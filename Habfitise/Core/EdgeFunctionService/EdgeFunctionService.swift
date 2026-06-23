@@ -46,6 +46,7 @@ struct RescheduleResponse: Decodable {
     let updatedPlan: String
 }
 
+/// Workout plans are generated on-device. User data syncs to Supabase via `SyncService` — no Edge Functions required.
 @MainActor
 final class EdgeFunctionService {
     static let shared = EdgeFunctionService()
@@ -53,48 +54,32 @@ final class EdgeFunctionService {
     private init() {}
 
     func generateWorkoutPlan(_ request: WorkoutPlanRequest) async throws -> WorkoutPlanResponse {
-        if AppConstants.Backend.useLocalOnly {
-            return LocalWorkoutPlanGenerator.makeResponse(for: request)
-        }
-
-        guard let client = SupabaseManager.shared.client else {
-            throw EdgeFunctionServiceError.notConfigured
-        }
-
-        return try await client.functions.invoke(
-            AppConstants.EdgeFunctions.planGenerator,
-            options: FunctionInvokeOptions(body: request)
-        )
+        LocalWorkoutPlanGenerator.makeResponse(for: request)
     }
 
     func generateDailyPlan(_ request: DailyPlanRequest) async throws -> DailyPlanResponse {
-        if AppConstants.Backend.useLocalOnly {
-            throw EdgeFunctionServiceError.notConfigured
-        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
 
-        guard let client = SupabaseManager.shared.client else {
-            throw EdgeFunctionServiceError.notConfigured
-        }
+        let plan: [String: Any] = [
+            "title": "Today's focus",
+            "date": request.date,
+            "goals": request.goals,
+            "generatedLocally": true
+        ]
+        let planJSON = String(
+            data: (try? JSONSerialization.data(withJSONObject: plan)) ?? Data("{}".utf8),
+            encoding: .utf8
+        ) ?? "{}"
 
-        return try await client.functions.invoke(
-            AppConstants.EdgeFunctions.planGenerator,
-            options: FunctionInvokeOptions(body: request)
+        return DailyPlanResponse(
+            plan: planJSON,
+            generatedAt: formatter.string(from: .now)
         )
     }
 
     func reschedulePlan(_ request: RescheduleRequest) async throws -> RescheduleResponse {
-        if AppConstants.Backend.useLocalOnly {
-            throw EdgeFunctionServiceError.notConfigured
-        }
-
-        guard let client = SupabaseManager.shared.client else {
-            throw EdgeFunctionServiceError.notConfigured
-        }
-
-        return try await client.functions.invoke(
-            AppConstants.EdgeFunctions.reschedule,
-            options: FunctionInvokeOptions(body: request)
-        )
+        RescheduleResponse(updatedPlan: request.currentPlan)
     }
 }
 

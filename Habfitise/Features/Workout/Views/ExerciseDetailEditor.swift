@@ -179,8 +179,8 @@ struct ExerciseDetailEditor: View {
             EditorStepperRow(
                 title: "DEFAULT DISTANCE",
                 value: String(format: "%.1f km", exercise.defaultDistanceKm),
-                onDecrement: { exercise.defaultDistanceKm = max(0, (exercise.defaultDistanceKm - 0.1 * 10).rounded() / 10) },
-                onIncrement: { exercise.defaultDistanceKm = min(50, (exercise.defaultDistanceKm + 0.1 * 10).rounded() / 10) }
+                onDecrement: { exercise.defaultDistanceKm = max(0, ((exercise.defaultDistanceKm - 0.1) * 10).rounded() / 10) },
+                onIncrement: { exercise.defaultDistanceKm = min(50, ((exercise.defaultDistanceKm + 0.1) * 10).rounded() / 10) }
             )
         }
 

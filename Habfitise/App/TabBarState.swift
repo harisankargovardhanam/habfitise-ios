@@ -3,24 +3,46 @@ import Observation
 import SwiftUI
 
 enum TabBarLayout {
-    /// Scroll content inset so the floating pill does not cover the last section.
-    static let floatingClearance: CGFloat = 136
+    /// Breathing room between the last scroll item and the tab bar.
+    static let scrollBreathingRoom: CGFloat = 16
 
-    static let edgeInset: CGFloat = 20
-    static let capsulePadding: CGFloat = 8
-    static let tabSpacing: CGFloat = 8
-    static let tabSpacingCompact: CGFloat = 6
+    /// How far the bar slides off-screen when hidden.
+    static let hideOffset: CGFloat = 110
 
-    static let iconSize: CGFloat = 20
-    static let iconSizeCompact: CGFloat = 18
-    static let labelSize: CGFloat = 14
+    /// Gap between the bar and the bottom safe area (floats lower on screen).
+    static let floatingBottomInset: CGFloat = 2
 
-    static let itemPaddingHActive: CGFloat = 18
-    static let itemPaddingHInactive: CGFloat = 15
-    static let itemPaddingHActiveCompact: CGFloat = 14
-    static let itemPaddingHInactiveCompact: CGFloat = 12
-    static let itemPaddingV: CGFloat = 14
-    static let itemPaddingVCompact: CGFloat = 12
+    /// Home-indicator clearance below the pill (overlay does not auto-inset scroll content).
+    static let homeIndicatorReserve: CGFloat = 34
+
+    /// Full scroll inset so the last row clears the floating tab bar at rest.
+    static var tabBarScrollInset: CGFloat {
+        barHeight + floatingBottomInset + homeIndicatorReserve + scrollBreathingRoom
+    }
+
+    /// Legacy alias used by tab scroll views.
+    static var floatingClearance: CGFloat { tabBarScrollInset }
+
+    static var barHeight: CGFloat {
+        itemSize + capsulePadding * 2
+    }
+
+    static let edgeInset: CGFloat = 24
+    static let capsulePadding: CGFloat = 10
+    static let tabSpacing: CGFloat = 4
+    static let tabSpacingCompact: CGFloat = 2
+
+    static let iconSize: CGFloat = 22
+    static let iconSizeCompact: CGFloat = 20
+
+    /// Active selection pill — wide squircle like reference tab bars.
+    static let activePillWidth: CGFloat = 58
+    static let activePillHeight: CGFloat = 40
+    static let activePillWidthCompact: CGFloat = 52
+    static let activePillHeightCompact: CGFloat = 36
+
+    static let itemSize: CGFloat = 58
+    static let itemSizeCompact: CGFloat = 52
 }
 
 enum MainTab: String, CaseIterable, Identifiable, Hashable {
@@ -59,10 +81,10 @@ final class TabBarState {
     var activeTab: MainTab = .home
     var isVisible = true
     var scrollOffset: CGFloat = 0
-    var tabTransitionForward = true
 
     private var lastScrollOffset: CGFloat = 0
-    private var scrollStopTask: Task<Void, Never>?
+    private var hasEstablishedBaseline = false
+    private var suppressHideUntil: Date?
 
     /// Full-width pill with labels when true; compact icon-only pill when false.
     var showsLabels: Bool { isVisible }
@@ -79,51 +101,51 @@ final class TabBarState {
 
     func selectTab(_ tab: MainTab) {
         guard activeTab != tab else { return }
-        let currentIndex = MainTab.allCases.firstIndex(of: activeTab) ?? 0
-        let nextIndex = MainTab.allCases.firstIndex(of: tab) ?? 0
-        tabTransitionForward = nextIndex > currentIndex
-        withAnimation(HabfitiseAnimation.tabTransition) {
-            activeTab = tab
-            isVisible = true
-        }
+        activeTab = tab
+        resetScrollState()
     }
 
     func reportScrollOffset(_ offset: CGFloat) {
-        scrollOffset = offset
+        if let until = suppressHideUntil, Date() < until {
+            lastScrollOffset = offset
+            scrollOffset = offset
+            return
+        }
+        suppressHideUntil = nil
+
+        if !hasEstablishedBaseline {
+            lastScrollOffset = offset
+            scrollOffset = offset
+            hasEstablishedBaseline = true
+            return
+        }
 
         let delta = offset - lastScrollOffset
-        if delta > 1, offset > 20 {
-            setCompact(true)
-        } else if delta < -1 {
-            setCompact(false)
+
+        // Ignore large layout jumps (List/ScrollView mount, tab switch, content reflow).
+        guard abs(delta) < 120 else {
+            lastScrollOffset = offset
+            scrollOffset = offset
+            return
+        }
+
+        if offset <= 12 {
+            if !isVisible { isVisible = true }
+        } else if delta > 8, offset > 36 {
+            isVisible = false
+        } else if delta < -8 {
+            isVisible = true
         }
 
         lastScrollOffset = offset
-        scheduleScrollStopRestore()
+        scrollOffset = offset
     }
 
     func resetScrollState() {
         lastScrollOffset = 0
         scrollOffset = 0
         isVisible = true
-        scrollStopTask?.cancel()
-    }
-
-    private func setCompact(_ compact: Bool) {
-        guard isVisible == !compact else { return }
-        withAnimation(HabfitiseAnimation.tabTransition) {
-            isVisible = !compact
-        }
-    }
-
-    private func scheduleScrollStopRestore() {
-        scrollStopTask?.cancel()
-        scrollStopTask = Task {
-            try? await Task.sleep(for: .milliseconds(180))
-            guard !Task.isCancelled else { return }
-            withAnimation(HabfitiseAnimation.tabTransition) {
-                isVisible = true
-            }
-        }
+        hasEstablishedBaseline = false
+        suppressHideUntil = Date().addingTimeInterval(0.45)
     }
 }

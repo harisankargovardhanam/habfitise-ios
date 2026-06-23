@@ -459,7 +459,11 @@ final class SwiftDataStack {
         waterGoals.forEach { context.delete($0) }
 
         UserDefaults.standard.removeObject(forKey: "trainingDaysPerWeek_\(userId)")
+        UserDefaults.standard.removeObject(
+            forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
+        )
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaultsKeys.hasCompletedOnboarding)
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaultsKeys.dailyWaterGoalML)
         try context.save()
     }
 

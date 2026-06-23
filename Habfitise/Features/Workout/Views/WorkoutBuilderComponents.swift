@@ -258,46 +258,55 @@ struct BuilderSetRow: View {
             }
 
             HStack(spacing: 8) {
-            Text(set.isWarmup ? "W" : "\(set.setNumber)")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(set.isWarmup ? Color(hex: "#FF6B35") : theme.colors.textSecondary)
-                .frame(width: 28)
+                Text(set.isWarmup ? "W" : "\(set.setNumber)")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(set.isWarmup ? Color(hex: "#FF6B35") : theme.colors.textSecondary)
+                    .frame(width: 28)
 
-            Text(set.previousSummary)
-                .font(.system(size: 12, weight: .medium))
-                .italic()
-                .foregroundStyle(theme.colors.textSecondary)
-                .frame(width: 56, alignment: .leading)
+                Text(set.previousSummary)
+                    .font(.system(size: 12, weight: .medium))
+                    .italic()
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .frame(width: 56, alignment: .leading)
 
-            if exercise.type == .cardio || exercise.type == .timed {
-                cardioControls
-            } else {
-                strengthControls
-            }
-
-            Button(action: onComplete) {
-                Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(set.isCompleted ? theme.colors.accentGreen : theme.colors.textTertiary)
-            }
-            .buttonStyle(.plain)
-            .disabled(set.isCompleted)
-
-            if set.isPersonalRecord {
-                HStack(spacing: 2) {
-                    Image(systemName: "star.fill")
-                        .foregroundStyle(Color(hex: "#F59E0B"))
-                    Text("PR")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color(hex: "#F59E0B"))
+                if exercise.type == .cardio || exercise.type == .timed {
+                    cardioControls
+                } else {
+                    strengthControls
                 }
+
+                Button(action: onComplete) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundStyle(set.isCompleted ? theme.colors.accentGreen : theme.colors.textTertiary)
+
+                        if set.isPersonalRecord {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(Color(hex: "#F59E0B"))
+                                .offset(x: 4, y: -4)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .disabled(set.isCompleted)
+                .accessibilityLabel(set.isPersonalRecord ? "Set complete, personal record" : "Complete set")
             }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isFlashing ? theme.colors.accentGreen.opacity(0.25) : theme.colors.chipBackground)
             )
+            .overlay {
+                if set.isPersonalRecord, set.isCompleted {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(Color(hex: "#F59E0B").opacity(0.55), lineWidth: 1.5)
+                }
+            }
             .onLongPressGesture(minimumDuration: 0.4) {
                 onLongPress()
             }
@@ -355,7 +364,9 @@ struct BuilderSetRow: View {
                 Text(value)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(theme.colors.textPrimary)
-                    .frame(minWidth: 44)
+                    .frame(minWidth: 36)
+                    .minimumScaleFactor(0.75)
+                    .lineLimit(1)
                 Button(action: increment) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(theme.colors.accentGreen)
@@ -413,6 +424,49 @@ struct BuilderRestTimerBar: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(theme.colors.fieldBackground)
         )
+    }
+}
+
+// MARK: - PR toast (non-layout-blocking)
+
+struct WorkoutPRToastBanner: View {
+    @Environment(ThemeManager.self) private var theme
+
+    let toast: WorkoutPRToast
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color(hex: "#F59E0B"))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("New personal record")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(theme.colors.textPrimary)
+                Text("\(toast.exerciseName) · \(toast.detail)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color(hex: "#F59E0B").opacity(0.45), lineWidth: 1)
+                }
+        }
+        .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
+        .padding(.horizontal, 16)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("New personal record for \(toast.exerciseName), \(toast.detail)")
     }
 }
 

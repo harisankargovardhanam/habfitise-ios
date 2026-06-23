@@ -56,6 +56,16 @@ final class TasksViewModel {
         somedayTasks = sortTasks(somedayList)
     }
 
+    func openTasks(for section: TaskSection) -> [TaskRecord] {
+        tasks(for: section).filter { !$0.isComplete }
+    }
+
+    var completedTasks: [TaskRecord] {
+        (todayTasks + upcomingTasks + somedayTasks)
+            .filter(\.isComplete)
+            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
     func tasks(for section: TaskSection) -> [TaskRecord] {
         switch section {
         case .today: todayTasks
@@ -70,6 +80,7 @@ final class TasksViewModel {
         HabfitiseHaptics.completion()
 
         task.isComplete = true
+        task.updatedAt = .now
         task.markPendingSync()
         try? context.save()
     }

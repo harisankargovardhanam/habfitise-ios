@@ -139,7 +139,7 @@
 		22727F795B46BB99306E0AE8 /* SyncDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDTOs.swift; sourceTree = "<group>"; };
 		22D28D920797F3D47139C181 /* WorkoutEnhancementComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutEnhancementComponents.swift; sourceTree = "<group>"; };
 		248320ABE77D8622E23404D9 /* HabfitiseWatermark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabfitiseWatermark.swift; sourceTree = "<group>"; };
-		253861E22DE52161AF757BBE /* Habfitise.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Habfitise.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		253861E22DE52161AF757BBE /* VAYA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VAYA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		265F7B964587FA8262185481 /* ActiveWorkoutViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutViewModel.swift; sourceTree = "<group>"; };
 		28A06F82F1B0204DF78886A0 /* GoogleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignInButton.swift; sourceTree = "<group>"; };
 		2904B777D37611A86E39AAA3 /* WorkoutViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutViewModel.swift; sourceTree = "<group>"; };
@@ -277,7 +277,7 @@
 		1681BEC83CF1EB8099D2C5A1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				253861E22DE52161AF757BBE /* Habfitise.app */,
+				253861E22DE52161AF757BBE /* VAYA.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -888,7 +888,7 @@
 				3AB154FA433C9C87637070ED /* RevenueCat */,
 			);
 			productName = Habfitise;
-			productReference = 253861E22DE52161AF757BBE /* Habfitise.app */;
+			productReference = 253861E22DE52161AF757BBE /* VAYA.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

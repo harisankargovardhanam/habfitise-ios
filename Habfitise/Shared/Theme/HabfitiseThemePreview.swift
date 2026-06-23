@@ -6,7 +6,7 @@ struct HabfitiseThemePreview: View {
         ScrollView {
             VStack(alignment: .leading, spacing: HabfitiseSpacing.xxl) {
                 VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
-                    Text("Habfitise")
+                    Text(AppConstants.appName)
                         .font(HabfitiseTypography.largeTitle)
                         .foregroundStyle(theme.colors.textOnBackground)
 
@@ -139,6 +139,6 @@ struct HabfitiseThemePreview_Previews: PreviewProvider {
     static var previews: some View {
         HabfitiseThemePreview()
             .environment(ThemeManager())
-            .previewDisplayName("Habfitise Theme")
+            .previewDisplayName("VAYA Theme")
     }
 }
