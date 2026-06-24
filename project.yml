@@ -51,8 +51,9 @@ targets:
         product: RevenueCat
     entitlements:
       path: Habfitise/Habfitise.entitlements
-      # Sign In with Apple + HealthKit require paid Apple Developer Program.
-      # Re-enable via Config/DEFERRED.md when enrolled.
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
 
 schemes:
   Habfitise:

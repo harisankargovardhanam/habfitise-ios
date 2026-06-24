@@ -40,6 +40,7 @@ final class WorkoutBuilderViewModel {
     var showRestTimer = false
     var restSecondsRemaining = 0
     var restDuration = 90
+    private var recoveryContext = RecoveryContext.empty
     var flashSetId: UUID?
     var prToast: WorkoutPRToast?
     var editingSetField: SetField?
@@ -260,7 +261,26 @@ final class WorkoutBuilderViewModel {
         loadVolumeProgressHints(context: context)
         showWeightLogPrompt = true
         startElapsedTimer()
+        Task {
+            await loadRecoveryContext(context: context)
+            updateLiveActivity(restSeconds: nil)
+        }
+        WorkoutLiveActivityManager.start(
+            workoutName: trimmedName.isEmpty ? "Workout" : trimmedName,
+            exerciseName: exercises.first?.name ?? "Exercise",
+            setLabel: "Set 1"
+        )
         withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {}
+    }
+
+    func loadRecoveryContext(context: ModelContext) async {
+        await HealthKitService.shared.syncAuthorizationRequestStatus()
+        let health = await HealthKitService.shared.fetchTodaySnapshot()
+        let yesterday = ActivityEngine.yesterdaySessions(userId: userId, context: context)
+        recoveryContext = ActivityEngine.recoveryContext(
+            health: health,
+            yesterdaySessions: yesterday
+        )
     }
 
     func toggleExerciseSelection(_ exerciseId: UUID) {
@@ -441,7 +461,11 @@ final class WorkoutBuilderViewModel {
             flashSetId = nil
         }
 
-        let rest = exercise.restSeconds
+        let rest = ActivityEngine.recommendedRestSeconds(
+            base: exercise.restSeconds,
+            context: recoveryContext,
+            workoutType: workoutType
+        )
         if shouldSkipRestAfterSuperset(completedExerciseId: exerciseId, completedSetNumber: row.setNumber) {
             if let partnerIndex = supersetPartnerIndex(for: exerciseId) {
                 currentExerciseIndex = partnerIndex
@@ -523,6 +547,7 @@ final class WorkoutBuilderViewModel {
     func prepareEndWorkout() {
         elapsedTask?.cancel()
         restTask?.cancel()
+        WorkoutLiveActivityManager.end()
 
         let completedSets = setStates.values.flatMap { $0 }.filter(\.isCompleted)
         let volume = completedSets.reduce(0.0) { partial, set in
@@ -604,6 +629,10 @@ final class WorkoutBuilderViewModel {
         }
 
         syncService.schedulePush(modelContext: context, userId: userId.lowercased())
+
+        Task {
+            await HealthKitService.shared.saveWorkoutSession(session)
+        }
     }
 
     private func fetchLatestTemplate(userId: String, name: String, context: ModelContext) -> WorkoutTemplate? {
@@ -790,11 +819,17 @@ final class WorkoutBuilderViewModel {
     // MARK: - Private
 
     private func defaultRest(for type: ExerciseType) -> Int {
+        let base: Int
         switch workoutType {
-        case .cardio: return 0
-        case .bodyweight: return 60
-        default: return 90
+        case .cardio: base = 0
+        case .bodyweight: base = 60
+        default: base = 90
         }
+        return ActivityEngine.recommendedRestSeconds(
+            base: base,
+            context: recoveryContext,
+            workoutType: workoutType
+        )
     }
 
     private func reindexExercises() {
@@ -890,6 +925,7 @@ final class WorkoutBuilderViewModel {
                 guard !Task.isCancelled else { return }
                 if let startedAt {
                     elapsedSeconds = Int(Date().timeIntervalSince(startedAt))
+                    updateLiveActivity(restSeconds: showRestTimer ? restSecondsRemaining : nil)
                 }
             }
         }
@@ -899,6 +935,7 @@ final class WorkoutBuilderViewModel {
         restDuration = seconds
         restSecondsRemaining = seconds
         showRestTimer = true
+        updateLiveActivity(restSeconds: seconds)
         restTask?.cancel()
         restTask = Task {
             var remaining = seconds
@@ -907,6 +944,7 @@ final class WorkoutBuilderViewModel {
                 guard !Task.isCancelled else { return }
                 remaining -= 1
                 restSecondsRemaining = remaining
+                updateLiveActivity(restSeconds: remaining)
                 if remaining == 10 {
                     UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 }
@@ -914,7 +952,20 @@ final class WorkoutBuilderViewModel {
             guard !Task.isCancelled else { return }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             showRestTimer = false
+            updateLiveActivity(restSeconds: nil)
         }
+    }
+
+    private func updateLiveActivity(restSeconds: Int?) {
+        guard screenPhase == .active else { return }
+        let exercise = exercises[safe: currentExerciseIndex]
+        let completedSets = setStates[exercise?.id ?? UUID()]?.filter(\.isCompleted).count ?? 0
+        WorkoutLiveActivityManager.update(
+            exerciseName: exercise?.name ?? trimmedName,
+            setLabel: "Set \(completedSets + 1)",
+            restSecondsRemaining: restSeconds,
+            elapsedSeconds: elapsedSeconds
+        )
     }
 
     private func loadVolumeProgressHints(context: ModelContext) {

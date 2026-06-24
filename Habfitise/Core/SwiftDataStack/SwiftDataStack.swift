@@ -486,6 +486,11 @@ final class SwiftDataStack {
         ))
         waterGoals.forEach { context.delete($0) }
 
+        let foodLogs = try context.fetch(FetchDescriptor<FoodLog>(
+            predicate: #Predicate { $0.userId == userId }
+        ))
+        foodLogs.forEach { context.delete($0) }
+
         UserDefaults.standard.removeObject(forKey: "trainingDaysPerWeek_\(userId)")
         UserDefaults.standard.removeObject(
             forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)

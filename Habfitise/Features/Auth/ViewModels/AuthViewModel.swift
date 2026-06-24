@@ -142,7 +142,7 @@ final class AuthViewModel {
 
             let userId = session.user.id.uuidString.lowercased()
             authState = .authenticated(userId: userId)
-            appState.setAuthenticated(userId: userId, context: context)
+            await appState.handleAuthenticatedSession(userId: userId, context: context)
         } catch AuthViewModelError.emailConfirmationRequired {
             authState = .unauthenticated
             errorMessage = "Check your email to confirm your account."

@@ -2,6 +2,7 @@ import Foundation
 
 enum UpgradeTrigger: String, CaseIterable, Identifiable {
     case aiDailyPlan
+    case aiNutrition
     case healthKitSync
     case unlimitedHabits
     case cloudSync
@@ -13,6 +14,7 @@ enum UpgradeTrigger: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .aiDailyPlan: "AI Daily Planner"
+        case .aiNutrition: "AI Nutrition"
         case .healthKitSync: "Apple Health Sync"
         case .unlimitedHabits: "Unlimited Habits"
         case .cloudSync: "Cloud Sync"
@@ -25,6 +27,8 @@ enum UpgradeTrigger: String, CaseIterable, Identifiable {
         switch self {
         case .aiDailyPlan:
             "Let AI build your perfect daily schedule."
+        case .aiNutrition:
+            "Estimate calories and protein from meals with AI."
         case .healthKitSync:
             "Connect Apple Watch and Health data."
         case .unlimitedHabits:

@@ -22,7 +22,9 @@ enum AppConstants {
 
     enum EdgeFunctions {
         static let planGenerator = "habfitise-plan-generator"
+        static let dailyPlan = "habfitise-daily-plan"
         static let reschedule = "habfitise-reschedule"
+        static let nutritionEstimate = "habfitise-nutrition-estimate"
     }
 
     enum UserDefaultsKeys {
@@ -43,11 +45,20 @@ enum AppConstants {
         static let appAppearance = "appAppearance"
         static let appTheme = "appTheme"
         static let generatedWorkoutPlanJSON = "generatedWorkoutPlanJSON"
+        static let generatedDailyPlanJSON = "generatedDailyPlanJSON"
+        static let lastDailyPlanDate = "lastDailyPlanDate"
         static let dismissedWorkoutSuggestion = "dismissedWorkoutSuggestion"
         static let preferredWorkoutTime = "preferredWorkoutTime"
         static let notificationsEnabled = "notificationsEnabled"
         /// Debug toggle in Profile — forces Pro (incl. cloud sync) for testing.
         static let debugForcePro = "debugForcePro"
+        static let dailyStepGoal = "dailyStepGoal"
+        static let healthKitAuthorizationRequested = "healthKitAuthorizationRequested"
+    }
+
+    enum Health {
+        static let defaultStepGoal = 10_000
+        static let defaultExerciseGoalMinutes = 30
     }
 
     enum Notifications {
@@ -76,7 +87,7 @@ enum AppConstants {
 
     /// Bump when making breaking SwiftData schema changes (new store file is created).
     enum SwiftData {
-        static let schemaVersion = 3
+        static let schemaVersion = 4
         static var storeFileName: String { "habfitise-v\(schemaVersion).store" }
     }
 
@@ -100,7 +111,7 @@ enum AppConstants {
     /// Sign In with Apple requires paid Apple Developer Program — off for Personal Team.
     enum Capabilities {
         static let signInWithApple = false
-        static let healthKit = false
+        static let healthKit = true
     }
 
     enum RevenueCatConfig {

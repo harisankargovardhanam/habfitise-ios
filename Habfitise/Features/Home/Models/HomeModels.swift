@@ -57,6 +57,8 @@ struct HomeWorkoutCardModel: Equatable {
     let sessionId: UUID?
     let summaryDuration: String?
     let summaryVolume: String?
+    let suggestedType: WorkoutType?
+    let suggestionReason: String?
 
     static let quickStart = HomeWorkoutCardModel(
         mode: .quickStart,
@@ -66,7 +68,9 @@ struct HomeWorkoutCardModel: Equatable {
         workoutType: nil,
         sessionId: nil,
         summaryDuration: nil,
-        summaryVolume: nil
+        summaryVolume: nil,
+        suggestedType: nil,
+        suggestionReason: nil
     )
 }
 

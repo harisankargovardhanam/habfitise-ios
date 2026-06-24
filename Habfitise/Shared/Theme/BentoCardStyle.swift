@@ -30,6 +30,8 @@ enum BentoCardAccent {
     case streak
     case mood
     case bodyWeight
+    case health
+    case nutrition
 
     var systemImage: String {
         switch self {
@@ -40,7 +42,9 @@ enum BentoCardAccent {
         case .water: "drop.fill"
         case .streak: "flame.fill"
         case .mood: "bolt.heart.fill"
-        case .bodyWeight: "scalemass"
+        case .bodyWeight: "figure.stand"
+        case .health: "heart.fill"
+        case .nutrition: "fork.knife"
         }
     }
 
@@ -54,6 +58,8 @@ enum BentoCardAccent {
         case .streak: colors.percentageOrange
         case .mood: colors.accentGreen
         case .bodyWeight: colors.accentGreen
+        case .health: Color(hex: "#FF375F")
+        case .nutrition: Color(hex: "#FF9500")
         }
     }
 }

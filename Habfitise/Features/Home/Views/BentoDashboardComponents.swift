@@ -59,7 +59,7 @@ struct BentoCollapsingDashboard<Content: View>: View {
                 content()
                     .padding(.horizontal, HabfitiseSpacing.xl)
                     .padding(.top, HabfitiseSpacing.md)
-                    .padding(.bottom, TabBarLayout.tabBarScrollInset)
+                    .padding(.bottom, TabBarLayout.tabBarScrollInsetWithFoodLog)
                     .frame(maxWidth: .infinity, alignment: .top)
                     .background(theme.colors.background.ignoresSafeArea(edges: .bottom))
             }

@@ -197,6 +197,11 @@ extension WidgetSnapshot {
         habitsDone: 1,
         habitsTotal: 2,
         openTaskCount: 2,
-        dayStreak: 5
+        dayStreak: 5,
+        stepsToday: 6_540,
+        stepGoal: 10_000,
+        workoutDoneToday: true,
+        workoutMinutesToday: 35,
+        wellnessScore: 72
     )
 }

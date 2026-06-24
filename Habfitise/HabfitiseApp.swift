@@ -12,7 +12,7 @@ struct HabfitiseApp: App {
     }
 
     init() {
-        configureThirdPartyServices()
+        NotificationService.shared.configure()
     }
 
     var body: some Scene {
@@ -36,7 +36,7 @@ struct HabfitiseApp: App {
                         do {
                             try await SupabaseManager.shared.handleDeepLink(url)
                             if let session = await SupabaseManager.shared.currentSession() {
-                                appState.setAuthenticated(
+                                await appState.handleAuthenticatedSession(
                                     userId: session.user.id.uuidString,
                                     context: SwiftDataStack.shared.mainContext
                                 )
@@ -47,10 +47,12 @@ struct HabfitiseApp: App {
                     }
                 }
                 .task {
+                    PurchaseService.shared.configureIfNeeded()
                     appState.applyDebugProOverride()
+                    PurchaseService.shared.onCustomerInfoUpdated = { info in
+                        appState.applyCustomerInfo(info)
+                    }
                     await bootstrapAuthState()
-                }
-                .task {
                     await bootstrapServices()
                 }
                 .task(id: appState.authenticatedUserId) {
@@ -99,13 +101,6 @@ struct HabfitiseApp: App {
         }
     }
 
-    private func configureThirdPartyServices() {
-        NotificationService.shared.configure()
-        if let revenueCatKey = Bundle.main.object(forInfoDictionaryKey: AppConstants.RevenueCat.apiKeyKey) as? String {
-            PurchaseService.shared.configure(apiKey: revenueCatKey)
-        }
-    }
-
     @MainActor
     private func bootstrapAuthState() async {
         if AppConstants.Backend.useLocalOnly {
@@ -133,7 +128,7 @@ struct HabfitiseApp: App {
                 }
 
             case .authenticated(let userId):
-                appState.setAuthenticated(
+                await appState.handleAuthenticatedSession(
                     userId: userId,
                     context: SwiftDataStack.shared.mainContext
                 )
@@ -150,20 +145,6 @@ struct HabfitiseApp: App {
 
     @MainActor
     private func bootstrapServices() async {
-        appState.applyDebugProOverride()
-
-        if PurchaseService.shared.isConfigured {
-            if PurchaseService.shared.customerInfo == nil {
-                if let info = try? await PurchaseService.shared.refreshCustomerInfo() {
-                    if !UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.debugForcePro) {
-                        appState.isPro = info.entitlements[AppConstants.RevenueCat.proEntitlementID]?.isActive == true
-                    }
-                }
-            } else if !UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.debugForcePro) {
-                appState.isPro = PurchaseService.shared.isProActive
-            }
-        }
-
         if let userId = appState.authenticatedUserId {
             appState.refreshWidgets(context: SwiftDataStack.shared.mainContext)
         }

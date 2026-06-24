@@ -411,34 +411,39 @@ struct HomeAvatarView: View {
     @Environment(ThemeManager.self) private var theme
     let displayName: String?
 
-    private var firstLetter: String? {
-        guard
-            let trimmed = displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
-            let first = trimmed.first
-        else {
-            return nil
-        }
-        return String(first).uppercased()
-    }
-
     var body: some View {
-        Group {
-            if let firstLetter {
-                Text(firstLetter)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-            } else {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
+        ZStack {
+            Circle()
+                .strokeBorder(
+                    AngularGradient(
+                        colors: [
+                            theme.colors.accentGreen,
+                            Color(hex: "#FF375F"),
+                            Color(hex: "#FF9500"),
+                            theme.colors.accentGreen
+                        ],
+                        center: .center
+                    ),
+                    lineWidth: 2.5
+                )
+
+            Circle()
+                .fill(theme.colors.fieldBackground)
+                .padding(3)
+
+            Image(systemName: "person.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(theme.colors.textSecondary)
         }
         .frame(width: 38, height: 38)
-        .background(Circle().fill(theme.colors.accentGreen))
-        .overlay {
-            Circle()
-                .strokeBorder(Color.white.opacity(0.25), lineWidth: 2)
+        .accessibilityLabel(profileAccessibilityLabel)
+    }
+
+    private var profileAccessibilityLabel: String {
+        if let name = displayName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return "Profile, \(name)"
         }
+        return "Profile"
     }
 }
 

@@ -171,6 +171,65 @@ final class SupabaseManager {
         let session = try await client.auth.session(from: url)
         cachedSession = session
     }
+
+    /// Lightweight check for returning users after reinstall (local SwiftData is empty).
+    func fetchRemoteProfileSummary(userId: String) async -> RemoteProfileSummary {
+        guard let client else { return .missing }
+
+        let normalizedUserId = userId.lowercased()
+
+        do {
+            if let summary = try await queryRemoteProfileSummary(
+                userId: normalizedUserId,
+                idColumn: "id",
+                client: client
+            ) {
+                return summary
+            }
+
+            return try await queryRemoteProfileSummary(
+                userId: normalizedUserId,
+                idColumn: "user_id",
+                client: client
+            ) ?? .missing
+        } catch {
+            return .missing
+        }
+    }
+
+    private func queryRemoteProfileSummary(
+        userId: String,
+        idColumn: String,
+        client: SupabaseClient
+    ) async throws -> RemoteProfileSummary? {
+        let rows: [RemoteProfilePresenceRow] = try await client
+            .from("profiles")
+            .select("id,is_pro")
+            .eq(idColumn, value: userId)
+            .limit(1)
+            .execute()
+            .value
+
+        guard let row = rows.first else { return nil }
+        return RemoteProfileSummary(exists: true, isPro: row.isPro == true)
+    }
+}
+
+struct RemoteProfileSummary: Equatable {
+    let exists: Bool
+    let isPro: Bool
+
+    static let missing = RemoteProfileSummary(exists: false, isPro: false)
+}
+
+private struct RemoteProfilePresenceRow: Decodable {
+    let id: String
+    let isPro: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case isPro = "is_pro"
+    }
 }
 
 enum SupabaseManagerError: LocalizedError {

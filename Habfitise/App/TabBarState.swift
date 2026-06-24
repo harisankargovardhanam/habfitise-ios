@@ -15,9 +15,22 @@ enum TabBarLayout {
     /// Home-indicator clearance below the pill.
     static let homeIndicatorReserve: CGFloat = 28
 
+    /// Reserve space for the floating food log button above the tab bar.
+    static let foodLogButtonHeight: CGFloat = 48
+    static let foodLogButtonSpacing: CGFloat = 10
+
+    static var foodLogButtonClearance: CGFloat {
+        foodLogButtonHeight + foodLogButtonSpacing
+    }
+
     /// Full scroll inset so the last row clears the floating tab bar at rest.
     static var tabBarScrollInset: CGFloat {
         barHeight + floatingBottomInset + homeIndicatorReserve + scrollBreathingRoom
+    }
+
+    /// Full scroll inset including food log FAB + tab bar.
+    static var tabBarScrollInsetWithFoodLog: CGFloat {
+        tabBarScrollInset + foodLogButtonClearance
     }
 
     static var floatingClearance: CGFloat { tabBarScrollInset }
@@ -97,6 +110,8 @@ final class TabBarState {
     var activeTab: MainTab = .home
     var isVisible = true
     var scrollOffset: CGFloat = 0
+    var showsFoodLog = false
+    var foodLogStartsOnAdd = false
 
     private var lastScrollOffset: CGFloat = 0
     private var hasEstablishedBaseline = false
@@ -106,6 +121,12 @@ final class TabBarState {
     var showsLabels: Bool { isVisible }
 
     var labelOpacity: Double { 1 }
+
+    func openFoodLog(addNew: Bool = false) {
+        foodLogStartsOnAdd = addNew
+        showsFoodLog = true
+        isVisible = true
+    }
 
     func selectTab(_ tab: MainTab) {
         guard activeTab != tab else { return }

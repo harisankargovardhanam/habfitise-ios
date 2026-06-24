@@ -99,7 +99,7 @@ struct ProgressContentView: View {
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
                 .padding(.top, HabfitiseSpacing.sm)
-                .padding(.bottom, TabBarLayout.tabBarScrollInset)
+                .padding(.bottom, TabBarLayout.tabBarScrollInsetWithFoodLog)
                 .reportScrollOffsetToTabBar()
             }
             .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
@@ -115,6 +115,9 @@ struct ProgressContentView: View {
         .onChange(of: sets.count) { _, _ in syncViewModel() }
         .onChange(of: completions.count) { _, _ in syncViewModel() }
         .onChange(of: waterLogs.count) { _, _ in syncViewModel() }
+        .task {
+            await refreshFusionData()
+        }
     }
 
     private var progressSections: some View {
@@ -129,11 +132,19 @@ struct ProgressContentView: View {
             )
             .habfitiseStaggeredAppear(index: 2)
 
-            ProgressWorkoutMinutesCard(weeklyMinutes: viewModel.weeklyWorkoutMinutes)
+            ProgressWellnessScoreCard(score: viewModel.wellnessScore)
                 .habfitiseStaggeredAppear(index: 3)
 
+            if !viewModel.trainingTrendDays.isEmpty {
+                ProgressTrainingLoadCard(days: viewModel.trainingTrendDays)
+                    .habfitiseStaggeredAppear(index: 4)
+            }
+
+            ProgressWorkoutMinutesCard(weeklyMinutes: viewModel.weeklyWorkoutMinutes)
+                .habfitiseStaggeredAppear(index: 5)
+
             ProgressPersonalRecordsCard(records: viewModel.personalRecords)
-                .habfitiseStaggeredAppear(index: 4)
+                .habfitiseStaggeredAppear(index: 6)
 
             if !bodyWeightEntries.isEmpty {
                 BodyWeightCard(
@@ -141,7 +152,7 @@ struct ProgressContentView: View {
                     targetWeightKg: profile?.targetWeightKg ?? 0,
                     startWeightKg: bodyWeightEntries.first?.weightKg
                 )
-                .habfitiseStaggeredAppear(index: 5)
+                .habfitiseStaggeredAppear(index: 7)
             }
 
             ProgressHabitHeatmapCard(
@@ -149,17 +160,17 @@ struct ProgressContentView: View {
                 isPro: appState.isPro,
                 onUpgrade: { appState.requireUpgrade(for: .advancedAnalytics) }
             )
-            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 5 : 6)
+            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 7 : 8)
 
             ProgressWaterWeekCard(
                 days: viewModel.waterWeekDays,
                 dailyAverage: viewModel.waterDailyAverage,
                 goalMl: viewModel.waterGoalML
             )
-            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 6 : 7)
+            .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 8 : 9)
 
             ProgressExportRow(exportURL: exportURL)
-                .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 7 : 8)
+                .habfitiseStaggeredAppear(index: bodyWeightEntries.isEmpty ? 9 : 10)
         }
     }
 
@@ -186,6 +197,28 @@ struct ProgressContentView: View {
             waterGoal: waterGoals.first,
             isPro: appState.isPro,
             context: modelContext
+        )
+    }
+
+    private func refreshFusionData() async {
+        await HealthKitService.shared.syncAuthorizationRequestStatus()
+        let health = await HealthKitService.shared.fetchTodaySnapshot()
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: .now)
+        let todayEnd = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? todayStart
+        let todayWaterMl = waterLogs
+            .filter { $0.loggedAt >= todayStart && $0.loggedAt < todayEnd }
+            .reduce(0) { $0 + $1.amountMl }
+        let waterProgress = viewModel.waterGoalML > 0
+            ? Double(todayWaterMl) / Double(viewModel.waterGoalML)
+            : 0
+
+        await viewModel.applyHealthTrends(
+            health: health,
+            sessions: sessions,
+            habits: habits,
+            completions: completions,
+            waterProgress: waterProgress
         )
     }
 }

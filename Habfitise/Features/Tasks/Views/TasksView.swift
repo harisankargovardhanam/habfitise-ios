@@ -110,7 +110,7 @@ struct TasksContentView: View {
                         .habfitiseStaggeredAppear(index: 1)
                 }
             }
-            .padding(.bottom, TabBarLayout.tabBarScrollInset)
+            .padding(.bottom, TabBarLayout.tabBarScrollInsetWithFoodLog)
             .reportScrollOffsetToTabBar()
         }
         .scrollIndicators(.hidden)

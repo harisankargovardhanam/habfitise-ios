@@ -27,6 +27,7 @@ struct HomeContentView: View {
     @Environment(AppState.self) private var appState
     @Environment(SyncService.self) private var syncService
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel = HomeViewModel()
     @State private var metricsPeriod: BentoMetricsPeriod = .week
@@ -35,6 +36,8 @@ struct HomeContentView: View {
     @State private var showProfile = false
     @State private var showAddTask = false
     @State private var showWeightLog = false
+    @State private var showStepGoalEditor = false
+    @State private var nutritionViewModel = NutritionViewModel()
 
     @Bindable private var notificationBridge = WorkoutNotificationBridge.shared
 
@@ -48,6 +51,7 @@ struct HomeContentView: View {
     @Query private var profiles: [UserProfile]
     @Query private var waterGoals: [WaterGoal]
     @Query private var bodyWeightEntries: [BodyWeightEntry]
+    @Query private var foodLogs: [FoodLog]
 
     init(userId: String) {
         self.userId = userId
@@ -73,6 +77,13 @@ struct HomeContentView: View {
 
         _waterLogs = Query(
             filter: #Predicate<WaterLog> { log in
+                log.userId == userId && log.loggedAt >= today && log.loggedAt < tomorrow
+            },
+            sort: [SortDescriptor(\.loggedAt, order: .reverse)]
+        )
+
+        _foodLogs = Query(
+            filter: #Predicate<FoodLog> { log in
                 log.userId == userId && log.loggedAt >= today && log.loggedAt < tomorrow
             },
             sort: [SortDescriptor(\.loggedAt, order: .reverse)]
@@ -136,6 +147,7 @@ struct HomeContentView: View {
                 habits: habits,
                 tasks: tasks,
                 waterLogs: waterLogs,
+                foodLogs: foodLogs,
                 workoutTemplates: workoutTemplates,
                 todaySessions: todaySessions,
                 recentSessions: recentSessions,
@@ -143,6 +155,7 @@ struct HomeContentView: View {
                 tabBarState: tabBarState,
                 notificationBridge: notificationBridge,
                 onSync: syncViewModel,
+                onWaterSync: syncWaterFromLogs,
                 onConsumeNotification: consumeNotificationBuilder
             ))
             .modifier(HomePresentationModifier(
@@ -156,6 +169,38 @@ struct HomeContentView: View {
             ))
             .onChange(of: appState.isPro) { _, _ in
                 syncViewModel()
+            }
+            .task(id: userId) {
+                viewModel.beginHealthMonitoring()
+                await viewModel.refreshHealthData(
+                    templates: workoutTemplates,
+                    todaySessions: todaySessions,
+                    habits: habits,
+                    tasks: tasks,
+                    isPro: appState.isPro
+                )
+                refreshNutritionSummary()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                scheduleHealthRefresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .healthKitStepsDidUpdate)) { _ in
+                scheduleHealthRefresh()
+            }
+            .sheet(isPresented: $showStepGoalEditor) {
+                StepGoalEditorSheet(currentGoal: viewModel.healthSnapshot.stepGoal) { goal in
+                    Task {
+                        await viewModel.updateStepGoal(
+                            goal,
+                            templates: workoutTemplates,
+                            todaySessions: todaySessions,
+                            habits: habits,
+                            tasks: tasks,
+                            isPro: appState.isPro
+                        )
+                    }
+                }
             }
     }
 
@@ -191,8 +236,9 @@ struct HomeContentView: View {
     private var homeDashboardCards: some View {
         VStack(spacing: BentoCardStyle.metricGridSpacing) {
             bentoWorkoutCell
-            bentoActivityCell
+            bentoDailyMovementCell
             bentoWaterCell
+            bentoNutritionCell
             bentoHabitsCell
             bentoTasksCell
             bentoWeightCell
@@ -203,21 +249,48 @@ struct HomeContentView: View {
     // MARK: - Bento cells
 
     private var homeDashboardHeader: some View {
-        HabfitiseTabPageHeader(title: viewModel.greeting) {
-            Button {
-                showProfile = true
-            } label: {
-                HomeAvatarView(displayName: profileDisplayName)
+        VStack(alignment: .leading, spacing: 6) {
+            HabfitiseTabPageHeader(title: viewModel.greeting) {
+                Button {
+                    showProfile = true
+                } label: {
+                    HomeAvatarView(displayName: profileDisplayName)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open profile")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open profile")
+
+            if !viewModel.greetingSubtitle.isEmpty {
+                Text(viewModel.greetingSubtitle)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+                    .padding(.horizontal, 4)
+                    .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+            }
         }
-        .padding(.horizontal, 4)
     }
 
-    private var bentoActivityCell: some View {
-        BentoCardContainer(title: "Activity", accent: .activity) {
-            BentoActivityChartBody(period: $metricsPeriod, bars: activityBars)
+    private var bentoDailyMovementCell: some View {
+        BentoCardContainer(title: "Daily Movement", accent: .health) {
+            BentoDailyMovementCard(
+                connectionState: viewModel.healthConnectionState,
+                summary: viewModel.activitySummary,
+                isPro: appState.isPro,
+                onConnect: {
+                    Task {
+                        await viewModel.connectHealth(isPro: appState.isPro, appState: appState)
+                        viewModel.beginHealthMonitoring()
+                        scheduleHealthRefresh(force: true)
+                    }
+                },
+                onEditStepGoal: viewModel.healthConnectionState == .connected
+                    ? { showStepGoalEditor = true }
+                    : nil,
+                onOpenHealth: { HealthKitSettingsOpener.openHealthApp() },
+                onRefresh: {
+                    scheduleHealthRefresh(force: true)
+                }
+            )
         }
     }
 
@@ -346,14 +419,32 @@ struct HomeContentView: View {
         }
     }
 
+    private var bentoNutritionCell: some View {
+        BentoNutritionCard(
+            summary: nutritionViewModel.daySummary,
+            isPro: appState.isPro,
+            onOpenLog: { tabBarState.openFoodLog(addNew: false) },
+            onQuickLog: { openNutritionFlow() }
+        )
+    }
+
+    private func openNutritionFlow() {
+        if appState.isPro {
+            tabBarState.openFoodLog(addNew: true)
+        } else {
+            appState.requireUpgrade(for: .aiNutrition)
+        }
+    }
+
     private var bentoWaterCell: some View {
         BentoWaterIntakeCard(
             currentML: viewModel.waterTodayML,
             goalML: viewModel.waterGoalML,
+            glassVolumeML: viewModel.waterGlassVolumeML,
             filledGlasses: viewModel.filledWaterGlasses,
             glassCount: HomeViewModel.waterGlassCount,
-            onLogGlass: {
-                viewModel.logWaterGlass(userId: userId, context: modelContext)
+            onQuickAdd: { amountML in
+                viewModel.logWaterAmount(amountML, userId: userId, context: modelContext)
             }
         )
     }
@@ -364,7 +455,7 @@ struct HomeContentView: View {
                 ZStack {
                     Circle()
                         .fill(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors).opacity(0.14))
-                    Image(systemName: "scalemass")
+                    Image(systemName: "figure.stand")
                         .font(.system(size: 24, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(BentoCardAccent.bodyWeight.focalColor(in: themeManager.colors))
@@ -473,19 +564,25 @@ struct HomeContentView: View {
             }
 
         case .quickStart:
-            Text("Quick Start")
+            Text(viewModel.workoutCard.title)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(themeManager.colors.textPrimary)
 
-            Text("Pick a workout type below")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(themeManager.colors.textSecondary)
+            if let reason = viewModel.workoutCard.suggestionReason {
+                Text(reason)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+            } else {
+                Text("Pick a workout type below")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+            }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: HabfitiseSpacing.sm) {
-                homeQuickStartButton(type: .weights, icon: "dumbbell.fill", label: "Weights")
-                homeQuickStartButton(type: .cardio, icon: "figure.run", label: "Cardio")
-                homeQuickStartButton(type: .bodyweight, icon: "figure.jumprope", label: "Bodyweight")
-                homeQuickStartButton(type: .hiit, icon: "bolt.heart.fill", label: "HIIT")
+                homeQuickStartButton(type: .weights, icon: "dumbbell.fill", label: "Weights", highlighted: viewModel.workoutCard.suggestedType == .weights)
+                homeQuickStartButton(type: .cardio, icon: "figure.run", label: "Cardio", highlighted: viewModel.workoutCard.suggestedType == .cardio)
+                homeQuickStartButton(type: .bodyweight, icon: "figure.jumprope", label: "Bodyweight", highlighted: viewModel.workoutCard.suggestedType == .bodyweight)
+                homeQuickStartButton(type: .hiit, icon: "bolt.heart.fill", label: "HIIT", highlighted: viewModel.workoutCard.suggestedType == .hiit)
             }
         }
     }
@@ -517,6 +614,16 @@ struct HomeContentView: View {
         return name
     }
 
+    private func syncWaterFromLogs() {
+        viewModel.syncWaterFromLogs(
+            waterLogs: waterLogs,
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks
+        )
+        publishWidgetSnapshot()
+    }
+
     private func syncViewModel() {
         viewModel.bind(
             userId: userId,
@@ -530,6 +637,40 @@ struct HomeContentView: View {
             context: modelContext
         )
         publishWidgetSnapshot()
+        refreshNutritionSummary()
+        viewModel.applyHealthRefresh(
+            templates: workoutTemplates,
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks
+        )
+        Task {
+            await viewModel.generateDailyPlan(
+                appState: appState,
+                userId: userId,
+                profile: profiles.first
+            )
+        }
+    }
+
+    private func scheduleHealthRefresh(force: Bool = false) {
+        viewModel.scheduleAutomaticHealthRefresh(
+            templates: workoutTemplates,
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks,
+            isPro: appState.isPro,
+            force: force,
+            onComplete: { refreshNutritionSummary() }
+        )
+    }
+
+    private func refreshNutritionSummary() {
+        nutritionViewModel.refresh(
+            logs: foodLogs,
+            profile: profiles.first,
+            activeEnergyKcal: viewModel.healthSnapshot.activeEnergyKcal
+        )
     }
 
     private func publishWidgetSnapshot() {
@@ -556,7 +697,7 @@ struct HomeContentView: View {
         builderRoute = WorkoutBuilderRoute(type: pending.workoutType, template: template)
     }
 
-    private func homeQuickStartButton(type: WorkoutType, icon: String, label: String) -> some View {
+    private func homeQuickStartButton(type: WorkoutType, icon: String, label: String, highlighted: Bool = false) -> some View {
         Button {
             openQuickStart(type: type)
         } label: {
@@ -566,13 +707,19 @@ struct HomeContentView: View {
                 Text(label)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
             }
-            .foregroundStyle(themeManager.colors.textPrimary)
+            .foregroundStyle(highlighted ? themeManager.colors.textOnBackground : themeManager.colors.textPrimary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, HabfitiseSpacing.lg)
             .background(
                 RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
-                    .fill(themeManager.colors.fieldBackground)
+                    .fill(highlighted ? themeManager.colors.accentGreen : themeManager.colors.fieldBackground)
             )
+            .overlay {
+                if highlighted {
+                    RoundedRectangle(cornerRadius: BentoCardStyle.cornerRadius, style: .continuous)
+                        .stroke(themeManager.colors.accentGreen.opacity(0.4), lineWidth: 2)
+                }
+            }
         }
         .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.97))
     }
@@ -666,6 +813,7 @@ private struct HomeDashboardLifecycleModifier: ViewModifier {
     let habits: [Habit]
     let tasks: [TaskRecord]
     let waterLogs: [WaterLog]
+    let foodLogs: [FoodLog]
     let workoutTemplates: [WorkoutTemplate]
     let todaySessions: [WorkoutSession]
     let recentSessions: [WorkoutSession]
@@ -673,6 +821,7 @@ private struct HomeDashboardLifecycleModifier: ViewModifier {
     let tabBarState: TabBarState
     let notificationBridge: WorkoutNotificationBridge
     let onSync: () -> Void
+    let onWaterSync: () -> Void
     let onConsumeNotification: () -> Void
 
     func body(content: Content) -> some View {
@@ -685,11 +834,13 @@ private struct HomeDashboardLifecycleModifier: ViewModifier {
                 habits: habits,
                 tasks: tasks,
                 waterLogs: waterLogs,
+                foodLogs: foodLogs,
                 workoutTemplates: workoutTemplates,
                 todaySessions: todaySessions,
                 recentSessions: recentSessions,
                 notificationBridge: notificationBridge,
                 onSync: onSync,
+                onWaterSync: onWaterSync,
                 onConsumeNotification: onConsumeNotification
             ))
             .sheet(isPresented: $showWeightLog) {
@@ -714,24 +865,61 @@ private struct HomeDashboardDataSyncModifier: ViewModifier {
     let habits: [Habit]
     let tasks: [TaskRecord]
     let waterLogs: [WaterLog]
+    let foodLogs: [FoodLog]
     let workoutTemplates: [WorkoutTemplate]
     let todaySessions: [WorkoutSession]
     let recentSessions: [WorkoutSession]
     let notificationBridge: WorkoutNotificationBridge
     let onSync: () -> Void
+    let onWaterSync: () -> Void
     let onConsumeNotification: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(HomeHabitsTasksSyncModifier(habits: habits, tasks: tasks, onSync: onSync))
+            .modifier(HomeWorkoutSyncModifier(
+                waterLogs: waterLogs,
+                foodLogs: foodLogs,
+                workoutTemplates: workoutTemplates,
+                todaySessions: todaySessions,
+                recentSessions: recentSessions,
+                onSync: onSync,
+                onWaterSync: onWaterSync
+            ))
+            .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
+                onConsumeNotification()
+            }
+    }
+}
+
+private struct HomeHabitsTasksSyncModifier: ViewModifier {
+    let habits: [Habit]
+    let tasks: [TaskRecord]
+    let onSync: () -> Void
 
     func body(content: Content) -> some View {
         content
             .onChange(of: habits.map(\.id)) { _, _ in onSync() }
             .onChange(of: tasks.map(\.id)) { _, _ in onSync() }
-            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in onSync() }
+    }
+}
+
+private struct HomeWorkoutSyncModifier: ViewModifier {
+    let waterLogs: [WaterLog]
+    let foodLogs: [FoodLog]
+    let workoutTemplates: [WorkoutTemplate]
+    let todaySessions: [WorkoutSession]
+    let recentSessions: [WorkoutSession]
+    let onSync: () -> Void
+    let onWaterSync: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: waterLogs.map(\.amountMl)) { _, _ in onWaterSync() }
+            .onChange(of: foodLogs.map(\.id)) { _, _ in onSync() }
             .onChange(of: workoutTemplates.map(\.id)) { _, _ in onSync() }
             .onChange(of: todaySessions.map(\.id)) { _, _ in onSync() }
             .onChange(of: recentSessions.map(\.id)) { _, _ in onSync() }
-            .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
-                onConsumeNotification()
-            }
     }
 }
 

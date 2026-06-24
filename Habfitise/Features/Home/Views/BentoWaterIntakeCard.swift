@@ -1,16 +1,16 @@
 import SwiftUI
 
-// MARK: - Water intake card (full-width horizontal)
+// MARK: - Water intake (Home bento)
 
 struct BentoWaterIntakeCard: View {
     let currentML: Int
     let goalML: Int
+    let glassVolumeML: Int
     let filledGlasses: Int
     let glassCount: Int
-    let onLogGlass: () -> Void
+    let onQuickAdd: (Int) -> Void
 
     @Environment(ThemeManager.self) private var theme
-    @State private var animatedBottleLevel: Double = 1
     @State private var animatedProgress: Double = 0
 
     private var progress: Double {
@@ -18,262 +18,199 @@ struct BentoWaterIntakeCard: View {
         return min(Double(currentML) / Double(goalML), 1)
     }
 
-    /// Bottle drains as you drink toward your daily goal.
-    private var bottleLevel: Double {
-        guard goalML > 0 else { return 1 }
-        return max(0, 1 - progress)
-    }
-
-    private var percent: Int {
-        Int((progress * 100).rounded())
+    private var isGoalMet: Bool {
+        goalML > 0 && currentML >= goalML
     }
 
     private var remainingML: Int {
         max(0, goalML - currentML)
     }
 
+    private var statusLine: String {
+        if isGoalMet {
+            return "Daily goal reached"
+        }
+        if remainingML >= 1000 {
+            return String(format: "%.1f L to go", Double(remainingML) / 1000)
+        }
+        return "\(remainingML.formatted()) ml to go"
+    }
+
     var body: some View {
-        BentoCardContainer(title: "Water", accent: .water) {
-            VStack(alignment: .leading, spacing: HabfitiseSpacing.md) {
+        BentoCardContainer(title: "Hydration", accent: .water) {
+            VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
                 HStack(alignment: .center, spacing: HabfitiseSpacing.lg) {
-                    WaterBottleView(level: animatedBottleLevel)
-                        .frame(width: 56, height: 96)
+                    hydrationRing
 
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(currentML.formatted())
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
                                 .foregroundStyle(theme.colors.textPrimary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
+                                .monospacedDigit()
+                                .contentTransition(.numericText())
+                                .animation(nil, value: currentML)
 
                             Text("ml")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
                                 .foregroundStyle(theme.colors.textSecondary)
                         }
 
-                        Text("of \(goalML.formatted()) ml goal")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                        Text("of \(goalML.formatted()) ml")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(theme.colors.textSecondary)
 
-                        HStack(spacing: HabfitiseSpacing.sm) {
-                            Capsule()
-                                .fill(theme.colors.trackBackground)
-                                .overlay(alignment: .leading) {
-                                    Capsule()
-                                        .fill(theme.colors.waterBlue)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .scaleEffect(x: animatedProgress, anchor: .leading)
-                                }
-                                .frame(height: 10)
-
-                            Text("\(percent)%")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(theme.colors.waterBlue)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule()
-                                        .fill(theme.colors.waterBlue.opacity(0.14))
-                                )
-                                .fixedSize()
-                        }
-
-                        Text("\(remainingML.formatted()) ml remaining")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(theme.colors.textTertiary)
+                        Label(statusLine, systemImage: isGoalMet ? "checkmark.seal.fill" : "drop.fill")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(isGoalMet ? theme.colors.accentGreen : theme.colors.waterBlue)
+                            .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-                    HStack {
-                        Text("GLASSES")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundStyle(theme.colors.textSecondary)
+                glassProgressRow
 
-                        Spacer(minLength: 0)
-
-                        Text("\(filledGlasses) / \(glassCount)")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.colors.textSecondary)
-                    }
-
-                    HStack(spacing: 6) {
-                        ForEach(0..<glassCount, id: \.self) { index in
-                            Button(action: onLogGlass) {
-                                WaterGlassIcon(
-                                    isFilled: index < filledGlasses,
-                                    size: 16
-                                )
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 22)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+                quickAddRow
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
-                animatedBottleLevel = bottleLevel
+            withAnimation(.spring(response: 0.75, dampingFraction: 0.78)) {
                 animatedProgress = progress
             }
         }
-        .onChange(of: bottleLevel) { _, newValue in
-            withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
-                animatedBottleLevel = newValue
-            }
-        }
         .onChange(of: progress) { _, newValue in
-            withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
+            withAnimation(.spring(response: 0.75, dampingFraction: 0.78)) {
                 animatedProgress = newValue
             }
         }
     }
-}
 
-// MARK: - Bottle visual
+    private var hydrationRing: some View {
+        let waterColor = theme.colors.waterBlue
 
-private struct WaterBottleView: View {
-    let level: Double
+        return ZStack {
+            Circle()
+                .stroke(theme.colors.trackBackground, lineWidth: 10)
 
-    @Environment(ThemeManager.self) private var theme
+            Circle()
+                .trim(from: 0, to: animatedProgress)
+                .stroke(
+                    AngularGradient(
+                        colors: [waterColor.opacity(0.55), waterColor],
+                        center: .center,
+                        startAngle: .degrees(-90),
+                        endAngle: .degrees(270)
+                    ),
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
 
-    var body: some View {
-        let bottle = WaterBottleOutlineShape()
+            VStack(spacing: 2) {
+                ZStack {
+                    Text("\(Int((progress * 100).rounded()))%")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(theme.colors.textPrimary)
+                        .opacity(isGoalMet ? 0 : 1)
 
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let phase = timeline.date.timeIntervalSinceReferenceDate * 2.2
+                    if isGoalMet {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(waterColor)
+                    }
+                }
+                .frame(width: 44, height: 22)
 
-            ZStack {
-                bottle
-                    .fill(theme.colors.trackBackground.opacity(0.22))
+                Text("\(filledGlasses)/\(glassCount)")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.textTertiary)
+            }
+        }
+        .frame(width: 84, height: 84)
+        .contentShape(Circle())
+        .onTapGesture {
+            onQuickAdd(glassVolumeML)
+        }
+        .accessibilityLabel("Log one glass of water")
+        .accessibilityHint("\(glassVolumeML) milliliters")
+    }
 
-                bottle
-                    .stroke(theme.colors.trackBackground, lineWidth: 1.5)
+    private var glassProgressRow: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<glassCount, id: \.self) { index in
+                Capsule()
+                    .fill(index < filledGlasses ? theme.colors.waterBlue : theme.colors.trackBackground)
+                    .frame(height: 6)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: filledGlasses)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(filledGlasses) of \(glassCount) glasses logged")
+    }
 
-                WaveWaterFill(level: level, wavePhase: phase)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                theme.colors.waterBlue.opacity(0.65),
-                                theme.colors.waterBlue
-                            ],
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
-                    )
-                    .mask(bottle)
+    private var quickAddRow: some View {
+        HStack(spacing: HabfitiseSpacing.sm) {
+            quickAddButton(title: "+250", subtitle: "ml") {
+                onQuickAdd(250)
+            }
+            quickAddButton(title: "+500", subtitle: "ml") {
+                onQuickAdd(500)
+            }
+            quickAddButton(title: "Glass", subtitle: "\(glassVolumeML) ml", prominent: true) {
+                onQuickAdd(glassVolumeML)
             }
         }
     }
-}
 
-private struct WaterBottleOutlineShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let width = rect.width
-        let height = rect.height
-        let centerX = width / 2
-
-        let capWidth = width * 0.34
-        let capHeight = height * 0.08
-        let neckWidth = width * 0.28
-        let neckHeight = height * 0.14
-        let bodyWidth = width * 0.62
-        let cornerRadius = bodyWidth * 0.2
-
-        let bodyTop = capHeight + neckHeight
-        let bodyHeight = height - bodyTop - height * 0.02
-        let bodyLeft = centerX - bodyWidth / 2
-
-        var path = Path()
-
-        let capRect = CGRect(
-            x: centerX - capWidth / 2,
-            y: 0,
-            width: capWidth,
-            height: capHeight
-        )
-        path.addRoundedRect(in: capRect, cornerSize: CGSize(width: 3, height: 3))
-
-        let neckRect = CGRect(
-            x: centerX - neckWidth / 2,
-            y: capHeight,
-            width: neckWidth,
-            height: neckHeight
-        )
-        path.addRect(neckRect)
-
-        let bodyRect = CGRect(
-            x: bodyLeft,
-            y: bodyTop,
-            width: bodyWidth,
-            height: bodyHeight
-        )
-        path.addRoundedRect(
-            in: bodyRect,
-            cornerSize: CGSize(width: cornerRadius, height: cornerRadius)
-        )
-
-        return path
-    }
-}
-
-private struct WaveWaterFill: Shape {
-    var level: Double
-    var wavePhase: Double
-
-    var animatableData: AnimatablePair<Double, Double> {
-        get { AnimatablePair(level, wavePhase) }
-        set {
-            level = newValue.first
-            wavePhase = newValue.second
+    private func quickAddButton(
+        title: String,
+        subtitle: String,
+        prominent: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(prominent ? theme.colors.textOnBackground.opacity(0.85) : theme.colors.textTertiary)
+            }
+            .foregroundStyle(prominent ? theme.colors.textOnBackground : theme.colors.textPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(prominent ? theme.colors.waterBlue : theme.colors.fieldBackground)
+            )
         }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        guard level > 0.01 else { return Path() }
-
-        let fillHeight = rect.height * CGFloat(level)
-        let baseY = rect.height - fillHeight
-        let waveAmplitude = min(5, max(2.5, fillHeight * 0.1))
-
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: rect.height))
-        path.addLine(to: CGPoint(x: 0, y: baseY))
-
-        let steps = max(Int(rect.width / 2), 12)
-        for step in 0...steps {
-            let x = rect.width * CGFloat(step) / CGFloat(steps)
-            let normalized = CGFloat(step) / CGFloat(steps)
-            let primary = sin((normalized * .pi * 2) + CGFloat(wavePhase))
-            let secondary = sin((normalized * .pi * 4) + CGFloat(wavePhase * 1.4)) * 0.35
-            let y = baseY + (primary + secondary) * waveAmplitude
-            path.addLine(to: CGPoint(x: x, y: y))
-        }
-
-        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
-        path.closeSubpath()
-        return path
+        .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.97))
     }
 }
 
 #if DEBUG
 struct BentoWaterIntakeCard_Previews: PreviewProvider {
     static var previews: some View {
-        BentoWaterIntakeCard(
-            currentML: 6375,
-            goalML: 3000,
-            filledGlasses: 8,
-            glassCount: 8,
-            onLogGlass: {}
-        )
+        VStack(spacing: 16) {
+            BentoWaterIntakeCard(
+                currentML: 1750,
+                goalML: 2500,
+                glassVolumeML: 313,
+                filledGlasses: 5,
+                glassCount: 8,
+                onQuickAdd: { _ in }
+            )
+
+            BentoWaterIntakeCard(
+                currentML: 2600,
+                goalML: 2500,
+                glassVolumeML: 313,
+                filledGlasses: 8,
+                glassCount: 8,
+                onQuickAdd: { _ in }
+            )
+        }
         .padding()
         .environment(ThemeManager())
-        .preferredColorScheme(.dark)
     }
 }
 #endif

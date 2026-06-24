@@ -119,7 +119,7 @@ struct PaywallView: View {
 
     private func purchase() async {
         guard PurchaseService.shared.isConfigured else {
-            errorMessage = PurchaseServiceError.notConfigured.errorDescription
+            errorMessage = PurchaseServiceError.notConfigured(PurchaseService.shared.configurationStatus.issue).errorDescription
             return
         }
 

@@ -8,6 +8,7 @@ final class SettingsViewModel {
     var notificationsEnabled = NotificationService.shared.isEnabled
     var healthKitConnected = false
     var isRestoringPurchases = false
+    var revenueCatStatusLabel = PurchaseConfigurationStatus.notConfigured.connectionLabel
 
     func setNotificationsEnabled(_ enabled: Bool, userId: String?, context: ModelContext) {
         notificationsEnabled = enabled
@@ -34,13 +35,24 @@ final class SettingsViewModel {
 
         do {
             try await HealthKitService.shared.requestAuthorization(isPro: appState.isPro)
-            healthKitConnected = true
+            await refreshHealthKitStatus()
         } catch {
-            healthKitConnected = false
+            await refreshHealthKitStatus()
         }
     }
 
+    func refreshHealthKitStatus() async {
+        await HealthKitService.shared.syncAuthorizationRequestStatus()
+        healthKitConnected = HealthKitService.shared.connectionState() == .connected
+    }
+
+    func refreshRevenueCatStatus() {
+        let status = PurchaseService.shared.configureIfNeeded()
+        revenueCatStatusLabel = status.connectionLabel
+    }
+
     func restorePurchases(appState: AppState) async {
+        refreshRevenueCatStatus()
         guard PurchaseService.shared.isConfigured else { return }
         isRestoringPurchases = true
         defer { isRestoringPurchases = false }
@@ -48,7 +60,9 @@ final class SettingsViewModel {
         do {
             let info = try await PurchaseService.shared.restorePurchases()
             appState.isPro = info.entitlements[AppConstants.RevenueCat.proEntitlementID]?.isActive == true
+            refreshRevenueCatStatus()
         } catch {
+            refreshRevenueCatStatus()
             // TODO: Surface error to user
         }
     }

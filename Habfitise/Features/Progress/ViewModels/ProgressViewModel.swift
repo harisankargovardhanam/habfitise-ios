@@ -14,6 +14,8 @@ final class ProgressViewModel {
     var waterWeekDays: [WaterWeekDay] = []
     var waterDailyAverage = 0
     var waterGoalML = AppConstants.Water.defaultDailyGoalML
+    var wellnessScore = WellnessScore(score: 0, workoutPoints: 0, stepsPoints: 0, habitsPoints: 0, waterPoints: 0)
+    var trainingTrendDays: [TrainingTrendDay] = []
 
     func bind(
         userId: String,
@@ -94,8 +96,56 @@ final class ProgressViewModel {
         let totalWater = waterWeekDays.reduce(0) { $0 + $1.amountMl }
         waterDailyAverage = totalWater / daysWithData
 
+        let todayCompleted = completedSessions.filter { session in
+            guard let completedAt = session.completedAt else { return false }
+            return calendar.isDateInToday(completedAt)
+        }
+        let todayHabitCompletions = completions.filter { calendar.isDateInToday($0.completedDate) }.count
+        let todayStart = calendar.startOfDay(for: .now)
+        let todayEnd = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? todayStart
+        let todayWaterMl = waterLogs
+            .filter { $0.loggedAt >= todayStart && $0.loggedAt < todayEnd }
+            .reduce(0) { $0 + $1.amountMl }
+        let summary = ActivityEngine.dailySummary(
+            health: .empty,
+            todaySessions: todayCompleted
+        )
+        wellnessScore = ActivityEngine.wellnessScore(
+            summary: summary,
+            habitsDone: todayHabitCompletions,
+            habitsTotal: habits.filter(\.isActive).count,
+            waterProgress: waterGoalML > 0 ? Double(todayWaterMl) / Double(waterGoalML) : 0
+        )
+
         _ = context
         _ = userId
+    }
+
+    func applyHealthTrends(
+        health: HomeHealthSnapshot,
+        sessions: [WorkoutSession],
+        habits: [Habit],
+        completions: [HabitCompletion],
+        waterProgress: Double
+    ) async {
+        let weeklySteps = await HealthKitService.shared.fetchWeeklySteps()
+        trainingTrendDays = ActivityEngine.weeklyTrainingTrend(
+            sessions: sessions.filter { $0.completedAt != nil },
+            weeklySteps: weeklySteps
+        )
+
+        let calendar = Calendar.current
+        let todaySessions = sessions.filter { session in
+            guard let completedAt = session.completedAt else { return false }
+            return calendar.isDateInToday(completedAt)
+        }
+        let summary = ActivityEngine.dailySummary(health: health, todaySessions: todaySessions)
+        wellnessScore = ActivityEngine.wellnessScore(
+            summary: summary,
+            habitsDone: completions.filter { calendar.isDateInToday($0.completedDate) }.count,
+            habitsTotal: habits.filter(\.isActive).count,
+            waterProgress: waterProgress
+        )
     }
 
     func generateCSV(

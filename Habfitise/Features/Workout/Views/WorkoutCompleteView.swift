@@ -48,6 +48,7 @@ struct WorkoutCompleteView: View {
     @State private var showDatePicker = false
     @State private var showConfetti = false
     @State private var prBadgeScales: [UUID: CGFloat] = [:]
+    @State private var todayHealthLine: String?
 
     private enum Step {
         case rpe
@@ -235,6 +236,23 @@ struct WorkoutCompleteView: View {
 
                 statsCard
 
+                if let todayHealthLine {
+                    HStack(spacing: 8) {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(Color(hex: "#FF375F"))
+                        Text("Today so far · \(todayHealthLine)")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(theme.colors.fieldBackground)
+                    )
+                }
+
                 if !payload.newPRs.isEmpty {
                     prSection
                 }
@@ -258,6 +276,9 @@ struct WorkoutCompleteView: View {
             }
             .padding(.horizontal, 20)
             .safeAreaPadding(.bottom, HabfitiseSpacing.xl)
+        }
+        .task {
+            await loadTodayHealthLine()
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
@@ -420,6 +441,14 @@ struct WorkoutCompleteView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
             showConfetti = false
         }
+    }
+
+    private func loadTodayHealthLine() async {
+        await HealthKitService.shared.syncAuthorizationRequestStatus()
+        guard HealthKitService.shared.connectionState() == .connected else { return }
+        let health = await HealthKitService.shared.fetchTodaySnapshot()
+        let summary = ActivityEngine.dailySummary(health: health, todaySessions: [])
+        todayHealthLine = ActivityEngine.todayHealthSummaryLine(summary: summary)
     }
 
     private func finish() {

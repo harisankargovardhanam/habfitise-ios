@@ -7,5 +7,7 @@ struct VAYAWidgetsBundle: WidgetBundle {
         VAYATasksWidget()
         VAYAHabitsWidget()
         VAYAWaterWidget()
+        ActivityWidget()
+        WorkoutLiveActivityWidget()
     }
 }

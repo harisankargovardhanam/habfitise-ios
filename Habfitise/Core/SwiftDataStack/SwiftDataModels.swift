@@ -305,6 +305,64 @@ final class BodyWeightEntry: SyncTrackable {
     }
 }
 
+// MARK: - FoodLog
+
+@Model
+final class FoodLog: SyncTrackable {
+    @Attribute(.unique) var id: UUID
+    var userId: String
+    var title: String
+    var mode: String
+    var loggedAt: Date
+    var caloriesLow: Int
+    var caloriesMid: Int
+    var caloriesHigh: Int
+    var proteinLow: Int
+    var proteinMid: Int
+    var proteinHigh: Int
+    var confidence: String
+    var assumptionsJSON: String
+    var ingredientsJSON: String?
+    var synced: Bool
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        userId: String,
+        title: String,
+        mode: String,
+        loggedAt: Date = .now,
+        caloriesLow: Int,
+        caloriesMid: Int,
+        caloriesHigh: Int,
+        proteinLow: Int,
+        proteinMid: Int,
+        proteinHigh: Int,
+        confidence: String,
+        assumptionsJSON: String = "[]",
+        ingredientsJSON: String? = nil,
+        synced: Bool = false,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.userId = userId
+        self.title = title
+        self.mode = mode
+        self.loggedAt = loggedAt
+        self.caloriesLow = caloriesLow
+        self.caloriesMid = caloriesMid
+        self.caloriesHigh = caloriesHigh
+        self.proteinLow = proteinLow
+        self.proteinMid = proteinMid
+        self.proteinHigh = proteinHigh
+        self.confidence = confidence
+        self.assumptionsJSON = assumptionsJSON
+        self.ingredientsJSON = ingredientsJSON
+        self.synced = synced
+        self.updatedAt = updatedAt
+    }
+}
+
 // MARK: - Schema
 
 enum HabfitiseSwiftDataSchema {
@@ -322,7 +380,8 @@ enum HabfitiseSwiftDataSchema {
         TaskRecord.self,
         MoodCheckin.self,
         WaterLog.self,
-        WaterGoal.self
+        WaterGoal.self,
+        FoodLog.self
     ]
 
     static var schema: Schema {

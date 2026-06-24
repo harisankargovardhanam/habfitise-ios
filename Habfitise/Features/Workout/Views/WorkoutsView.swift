@@ -170,7 +170,7 @@ private struct WorkoutsContentView: View {
                 }
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }
-            .padding(.bottom, TabBarLayout.tabBarScrollInset)
+            .padding(.bottom, TabBarLayout.tabBarScrollInsetWithFoodLog)
             .reportScrollOffsetToTabBar()
         }
         .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)

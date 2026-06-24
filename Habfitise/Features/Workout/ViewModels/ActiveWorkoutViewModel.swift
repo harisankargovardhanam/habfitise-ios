@@ -257,6 +257,10 @@ final class ActiveWorkoutViewModel: Identifiable {
         session.markPendingSync()
         try? context.save()
 
+        Task {
+            await HealthKitService.shared.saveWorkoutSession(session)
+        }
+
         completionStats = WorkoutCompletionStats(
             durationSeconds: duration,
             totalSets: totalSets,

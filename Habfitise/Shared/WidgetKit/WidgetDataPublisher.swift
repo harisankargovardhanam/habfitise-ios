@@ -32,6 +32,8 @@ enum WidgetDataPublisher {
             : 0
         let habitsDone = habitItems.filter(\.isCompleted).count
         let dayStreak = habits.map { SwiftDataStack.shared.streakForHabit($0.id) }.max() ?? 0
+        let workoutToday = fetchTodayWorkout(userId: normalizedUserId, context: context, today: today, tomorrow: tomorrow)
+        let cachedActivity = WidgetActivityCache.load()
 
         let snapshot = WidgetSnapshot(
             updatedAt: .now,
@@ -44,7 +46,12 @@ enum WidgetDataPublisher {
             habitsDone: habitsDone,
             habitsTotal: habitItems.count,
             openTaskCount: taskItems.count,
-            dayStreak: dayStreak
+            dayStreak: dayStreak,
+            stepsToday: cachedActivity.stepsToday,
+            stepGoal: cachedActivity.stepGoal,
+            workoutDoneToday: workoutToday.done,
+            workoutMinutesToday: workoutToday.minutes,
+            wellnessScore: cachedActivity.wellnessScore
         )
         WidgetSnapshotStore.save(snapshot)
         reloadAllWidgetTimelines()
@@ -59,6 +66,38 @@ enum WidgetDataPublisher {
         WidgetCenter.shared.reloadTimelines(ofKind: "VAYATasksWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "VAYAHabitsWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "VAYAWaterWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "VAYAActivityWidget")
+    }
+
+    static func cacheActivity(
+        stepsToday: Int,
+        stepGoal: Int,
+        wellnessScore: Int
+    ) {
+        WidgetActivityCache.save(
+            stepsToday: stepsToday,
+            stepGoal: stepGoal,
+            wellnessScore: wellnessScore
+        )
+    }
+
+    private static func fetchTodayWorkout(
+        userId: String,
+        context: ModelContext,
+        today: Date,
+        tomorrow: Date
+    ) -> (done: Bool, minutes: Int) {
+        let descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate { session in
+                session.userId == userId
+                    && session.startedAt >= today
+                    && session.startedAt < tomorrow
+                    && session.completedAt != nil
+            }
+        )
+        let sessions = (try? context.fetch(descriptor)) ?? []
+        let minutes = sessions.reduce(0) { $0 + max($1.durationSeconds / 60, 0) }
+        return (done: !sessions.isEmpty, minutes: minutes)
     }
 
     // MARK: - Private

@@ -39,6 +39,29 @@ final class HomeViewModel {
 
     private(set) var habitItems: [HomeHabitChipItem] = []
 
+    private(set) var healthSnapshot = HomeHealthSnapshot.empty
+    private(set) var healthConnectionState: HomeHealthConnectionState = .notConnected
+    private var hasLoadedHealthOnce = false
+    private var isHealthFetchInFlight = false
+    private var lastAutomaticHealthRefresh: Date?
+    private var scheduledHealthRefresh: Task<Void, Never>?
+
+    private static let healthRefreshDebounce: Duration = .seconds(2)
+    private static let healthRefreshMinimumInterval: TimeInterval = 45
+    private(set) var activitySummary = DailyActivitySummary(
+        health: .empty,
+        workoutMinutesToday: 0,
+        workoutVolumeKg: 0,
+        hasCompletedWorkoutToday: false,
+        combinedExerciseMinutes: 0
+    )
+    private(set) var dailyBrief = DailyBrief(line: "")
+    private(set) var wellnessScore = WellnessScore(score: 0, workoutPoints: 0, stepsPoints: 0, habitsPoints: 0, waterPoints: 0)
+
+    var greetingSubtitle: String {
+        dailyBrief.line
+    }
+
     static let waterGlassCount = 8
 
     var filledWaterDrops: Int {
@@ -93,11 +116,6 @@ final class HomeViewModel {
         waterTodayML = waterLogs.reduce(0) { $0 + $1.amountMl }
         selectedMood = resolveInitialMood(userId: userId, context: context)
 
-        workoutCard = buildWorkoutCard(
-            templates: workoutTemplates,
-            todaySessions: todaySessions
-        )
-
         habitItems = habits.map { habit in
             HomeHabitChipItem(
                 id: habit.id,
@@ -110,8 +128,29 @@ final class HomeViewModel {
             HomeTaskItem(id: task.id, title: task.title, isComplete: task.isComplete)
         }
 
+        workoutCard = buildWorkoutCard(
+            templates: workoutTemplates,
+            todaySessions: todaySessions,
+            health: healthSnapshot
+        )
+
         streakStats = computeStreakStats(userId: userId, habits: habits, context: context)
         hasLoadedWorkoutSection = true
+    }
+
+    /// Updates water totals and wellness context without rebuilding the rest of the dashboard.
+    func syncWaterFromLogs(
+        waterLogs: [WaterLog],
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord]
+    ) {
+        waterTodayML = waterLogs.reduce(0) { $0 + $1.amountMl }
+        refreshActivityContext(
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks
+        )
     }
 
     // MARK: - Actions
@@ -132,14 +171,16 @@ final class HomeViewModel {
         logWater(amountML: waterGlassVolumeML, userId: userId, context: context)
     }
 
+    func logWaterAmount(_ amountML: Int, userId: String, context: ModelContext) {
+        logWater(amountML: amountML, userId: userId, context: context)
+    }
+
     private func logWater(amountML: Int, userId: String, context: ModelContext) {
-        let log = WaterLog(userId: userId, amountMl: amountML, source: "home_glass", synced: false)
+        let log = WaterLog(userId: userId, amountMl: amountML, source: "home_quick_add", synced: false)
         context.insert(log)
         try? context.save()
 
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.65)) {
-            waterTodayML += amountML
-        }
+        waterTodayML += amountML
         WidgetDataPublisher.refresh(context: context, userId: userId)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         Task {
@@ -147,13 +188,278 @@ final class HomeViewModel {
         }
     }
 
-    func generateDailyPlan(appState: AppState) async {
+    func generateDailyPlan(appState: AppState, userId: String, profile: UserProfile?) async {
         guard appState.isPro else {
             appState.requireUpgrade(for: .aiDailyPlan)
             return
         }
+
         isGeneratingPlan = true
-        isGeneratingPlan = false
+        defer { isGeneratingPlan = false }
+
+        let todayKey = Self.todayDateKey()
+        if UserDefaults.standard.string(forKey: AppConstants.UserDefaultsKeys.lastDailyPlanDate) == todayKey,
+           let cached = UserDefaults.standard.string(forKey: AppConstants.UserDefaultsKeys.generatedDailyPlanJSON),
+           let line = Self.summaryLine(fromPlanJSON: cached) {
+            dailyBrief = DailyBrief(line: line)
+            return
+        }
+
+        var goals: [String] = []
+        if let goal = profile?.goal.trimmingCharacters(in: .whitespacesAndNewlines), !goal.isEmpty {
+            goals.append(goal)
+        }
+        for habit in habitItems where !habit.isCompleted {
+            goals.append(habit.name)
+        }
+
+        let preferredTime = UserDefaults.standard.string(forKey: AppConstants.UserDefaultsKeys.preferredWorkoutTime)
+        let request = DailyPlanRequest(
+            date: todayKey,
+            goals: goals,
+            schedulePreferences: .init(
+                workoutDaysPerWeek: 3,
+                preferredWorkoutTime: preferredTime
+            ),
+            context: [
+                "stepsToday": "\(healthSnapshot.steps)",
+                "exerciseMinutes": "\(activitySummary.combinedExerciseMinutes)",
+                "wellnessScore": "\(wellnessScore.score)",
+                "openTasks": "\(taskItems.filter { !$0.isComplete }.count)"
+            ]
+        )
+
+        do {
+            let response = try await EdgeFunctionService.shared.generateDailyPlan(request)
+            UserDefaults.standard.set(response.plan, forKey: AppConstants.UserDefaultsKeys.generatedDailyPlanJSON)
+            UserDefaults.standard.set(todayKey, forKey: AppConstants.UserDefaultsKeys.lastDailyPlanDate)
+            if let line = Self.summaryLine(fromPlanJSON: response.plan) {
+                dailyBrief = DailyBrief(line: line)
+            }
+        } catch EdgeFunctionServiceError.proRequired {
+            appState.requireUpgrade(for: .aiDailyPlan)
+        } catch {
+            // Keep ActivityEngine brief on failure.
+        }
+    }
+
+    private static func todayDateKey() -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: .now)
+    }
+
+    private static func summaryLine(fromPlanJSON json: String) -> String? {
+        guard
+            let data = json.data(using: .utf8),
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        if let summary = object["summary"] as? String, !summary.isEmpty {
+            return summary
+        }
+        if let suggestions = object["suggestions"] as? [[String: Any]] {
+            if let text = suggestions.first?["text"] as? String, !text.isEmpty {
+                return text
+            }
+            if let action = suggestions.first?["action"] as? String, !action.isEmpty {
+                return action
+            }
+        }
+        if let title = object["title"] as? String {
+            return title
+        }
+        return nil
+    }
+
+    func refreshHealth(isPro: Bool, showLoading: Bool = false) async -> Bool {
+        guard !isHealthFetchInFlight else { return false }
+        isHealthFetchInFlight = true
+        defer { isHealthFetchInFlight = false }
+
+        guard AppConstants.Capabilities.healthKit else {
+            healthConnectionState = .unavailable
+            return false
+        }
+
+        await HealthKitService.shared.syncAuthorizationRequestStatus()
+
+        guard HealthKitService.shared.isAvailable else {
+            let hadData = healthSnapshot != .empty
+            healthConnectionState = .unavailable
+            healthSnapshot = .empty
+            HealthKitService.shared.stopStepCountMonitoring()
+            return hadData
+        }
+
+        guard HealthKitService.shared.hasRequestedAuthorization else {
+            let hadData = healthSnapshot != .empty
+            healthConnectionState = .notConnected
+            healthSnapshot = .empty
+            HealthKitService.shared.stopStepCountMonitoring()
+            return hadData
+        }
+
+        let snapshot = await HealthKitService.shared.fetchTodaySnapshot()
+        healthConnectionState = HealthKitService.shared.connectionState()
+        hasLoadedHealthOnce = true
+        guard snapshot != healthSnapshot else { return false }
+
+        healthSnapshot = snapshot
+        return true
+    }
+
+    func beginHealthMonitoring() {
+        HealthKitService.shared.startStepCountMonitoring()
+    }
+
+    func scheduleAutomaticHealthRefresh(
+        templates: [WorkoutTemplate],
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord],
+        isPro: Bool,
+        force: Bool = false,
+        onComplete: (() -> Void)? = nil
+    ) {
+        if force {
+            scheduledHealthRefresh?.cancel()
+            scheduledHealthRefresh = Task {
+                lastAutomaticHealthRefresh = Date()
+                await refreshHealthData(
+                    templates: templates,
+                    todaySessions: todaySessions,
+                    habits: habits,
+                    tasks: tasks,
+                    isPro: isPro,
+                    showLoading: false
+                )
+                onComplete?()
+            }
+            return
+        }
+
+        scheduledHealthRefresh?.cancel()
+        scheduledHealthRefresh = Task {
+            try? await Task.sleep(for: Self.healthRefreshDebounce)
+            guard !Task.isCancelled else { return }
+
+            if let lastAutomaticHealthRefresh,
+               Date().timeIntervalSince(lastAutomaticHealthRefresh) < Self.healthRefreshMinimumInterval {
+                return
+            }
+
+            lastAutomaticHealthRefresh = Date()
+            await refreshHealthData(
+                templates: templates,
+                todaySessions: todaySessions,
+                habits: habits,
+                tasks: tasks,
+                isPro: isPro,
+                showLoading: false
+            )
+            onComplete?()
+        }
+    }
+
+    func refreshHealthData(
+        templates: [WorkoutTemplate],
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord],
+        isPro: Bool,
+        showLoading: Bool = false
+    ) async {
+        let didChange = await refreshHealth(isPro: isPro, showLoading: showLoading)
+        guard didChange else { return }
+        applyHealthRefresh(
+            templates: templates,
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks
+        )
+    }
+
+    func updateStepGoal(
+        _ goal: Int,
+        templates: [WorkoutTemplate],
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord],
+        isPro: Bool
+    ) async {
+        HealthKitService.shared.setStepGoal(goal)
+        await refreshHealthData(
+            templates: templates,
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks,
+            isPro: isPro
+        )
+    }
+
+    func applyHealthRefresh(
+        templates: [WorkoutTemplate],
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord]
+    ) {
+        workoutCard = buildWorkoutCard(
+            templates: templates,
+            todaySessions: todaySessions,
+            health: healthSnapshot
+        )
+        refreshActivityContext(
+            todaySessions: todaySessions,
+            habits: habits,
+            tasks: tasks
+        )
+    }
+
+    func refreshActivityContext(
+        todaySessions: [WorkoutSession],
+        habits: [Habit],
+        tasks: [TaskRecord]
+    ) {
+        activitySummary = ActivityEngine.dailySummary(
+            health: healthSnapshot,
+            todaySessions: todaySessions
+        )
+        wellnessScore = ActivityEngine.wellnessScore(
+            summary: activitySummary,
+            habitsDone: habitItems.filter(\.isCompleted).count,
+            habitsTotal: habits.count,
+            waterProgress: waterFillProgress
+        )
+        dailyBrief = ActivityEngine.dailyBrief(
+            summary: activitySummary,
+            wellness: wellnessScore,
+            habitsDone: habitItems.filter(\.isCompleted).count,
+            habitsTotal: habits.count,
+            openTasks: tasks.filter { !$0.isComplete }.count
+        )
+        WidgetDataPublisher.cacheActivity(
+            stepsToday: healthSnapshot.steps,
+            stepGoal: healthSnapshot.stepGoal,
+            wellnessScore: wellnessScore.score
+        )
+    }
+
+    func connectHealth(isPro: Bool, appState: AppState) async {
+        guard isPro else {
+            appState.requireUpgrade(for: .healthKitSync)
+            return
+        }
+
+        do {
+            try await HealthKitService.shared.requestAuthorization(isPro: true)
+            await refreshHealth(isPro: isPro)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } catch {
+            healthConnectionState = HealthKitService.shared.connectionState()
+        }
     }
 
     // MARK: - Private
@@ -229,7 +535,8 @@ final class HomeViewModel {
 
     private func buildWorkoutCard(
         templates: [WorkoutTemplate],
-        todaySessions: [WorkoutSession]
+        todaySessions: [WorkoutSession],
+        health: HomeHealthSnapshot
     ) -> HomeWorkoutCardModel {
         if let session = todaySessions
             .filter({ $0.completedAt != nil })
@@ -247,7 +554,9 @@ final class HomeViewModel {
                 workoutType: session.type,
                 sessionId: session.id,
                 summaryDuration: formatDuration(session.durationSeconds),
-                summaryVolume: formatVolume(session.totalVolumeKg)
+                summaryVolume: formatVolume(session.totalVolumeKg),
+                suggestedType: nil,
+                suggestionReason: nil
             )
         }
 
@@ -274,7 +583,30 @@ final class HomeViewModel {
                 workoutType: template.type,
                 sessionId: nil,
                 summaryDuration: nil,
-                summaryVolume: nil
+                summaryVolume: nil,
+                suggestedType: nil,
+                suggestionReason: nil
+            )
+        }
+
+        let suggestion = ActivityEngine.suggestWorkout(
+            health: health,
+            templates: templates,
+            todaySessions: todaySessions
+        )
+
+        if let suggestion {
+            return HomeWorkoutCardModel(
+                mode: .quickStart,
+                title: "Suggested for you",
+                chips: [suggestion.reason],
+                templateId: nil,
+                workoutType: suggestion.type,
+                sessionId: nil,
+                summaryDuration: nil,
+                summaryVolume: nil,
+                suggestedType: suggestion.type,
+                suggestionReason: suggestion.reason
             )
         }
 

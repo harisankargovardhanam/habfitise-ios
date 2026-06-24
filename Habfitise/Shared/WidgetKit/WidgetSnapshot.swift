@@ -16,6 +16,12 @@ struct WidgetSnapshot: Codable, Equatable {
     var openTaskCount: Int
     var dayStreak: Int
 
+    var stepsToday: Int
+    var stepGoal: Int
+    var workoutDoneToday: Bool
+    var workoutMinutesToday: Int
+    var wellnessScore: Int
+
     static let empty = WidgetSnapshot(
         updatedAt: .distantPast,
         tasks: [],
@@ -27,7 +33,12 @@ struct WidgetSnapshot: Codable, Equatable {
         habitsDone: 0,
         habitsTotal: 0,
         openTaskCount: 0,
-        dayStreak: 0
+        dayStreak: 0,
+        stepsToday: 0,
+        stepGoal: 10_000,
+        workoutDoneToday: false,
+        workoutMinutesToday: 0,
+        wellnessScore: 0
     )
 }
 

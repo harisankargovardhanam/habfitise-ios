@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct LiquidGlassTabBar: View {
     @Environment(ThemeManager.self) private var theme
@@ -104,6 +105,7 @@ struct MainTabView: View {
     @Environment(SyncService.self) private var syncService
 
     @State private var tabBarState = TabBarState()
+    @State private var nutritionViewModel = NutritionViewModel()
     @Bindable private var missedWorkoutService = MissedWorkoutService.shared
     @Bindable private var notificationBridge = WorkoutNotificationBridge.shared
 
@@ -153,6 +155,17 @@ struct MainTabView: View {
                         missedWorkoutService.dismissProactiveSheet(for: item.id)
                     }
                 )
+            }
+            .fullScreenCover(isPresented: $tabBarState.showsFoodLog, onDismiss: {
+                tabBarState.foodLogStartsOnAdd = false
+            }) {
+                if let userId = appState.authenticatedUserId {
+                    NutritionDashboardView(
+                        viewModel: nutritionViewModel,
+                        userId: userId,
+                        startOnAdd: tabBarState.foodLogStartsOnAdd
+                    )
+                }
             }
     }
 
@@ -204,12 +217,25 @@ struct MainTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
-            LiquidGlassTabBar()
-                .padding(.bottom, TabBarLayout.floatingBottomInset)
-                .offset(y: tabBarState.isVisible ? 0 : TabBarLayout.hideOffset)
-                .opacity(tabBarState.isVisible ? 1 : 0)
-                .animation(.spring(response: 0.38, dampingFraction: 0.84), value: tabBarState.isVisible)
-                .allowsHitTesting(tabBarState.isVisible)
+            VStack(spacing: TabBarLayout.foodLogButtonSpacing) {
+                if appState.authenticatedUserId != nil, tabBarState.isVisible {
+                    FoodLogFloatingButton {
+                        if appState.isPro {
+                            tabBarState.openFoodLog(addNew: true)
+                        } else {
+                            appState.requireUpgrade(for: .aiNutrition)
+                        }
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                LiquidGlassTabBar()
+            }
+            .padding(.bottom, TabBarLayout.floatingBottomInset)
+            .offset(y: tabBarState.isVisible ? 0 : TabBarLayout.hideOffset)
+            .opacity(tabBarState.isVisible ? 1 : 0)
+            .animation(.spring(response: 0.38, dampingFraction: 0.84), value: tabBarState.isVisible)
+            .allowsHitTesting(tabBarState.isVisible)
         }
     }
 }

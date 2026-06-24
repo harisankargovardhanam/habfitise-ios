@@ -205,7 +205,7 @@ struct HabitsContentView: View {
                 .habfitiseStaggeredAppear(index: 1)
                 .padding(.horizontal, HabfitiseSpacing.lg)
             }
-            .padding(.bottom, TabBarLayout.tabBarScrollInset)
+            .padding(.bottom, TabBarLayout.tabBarScrollInsetWithFoodLog)
             .reportScrollOffsetToTabBar()
         }
         .contentMargins(.bottom, TabBarLayout.scrollBreathingRoom, for: .scrollContent)
