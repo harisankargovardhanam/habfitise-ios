@@ -204,7 +204,13 @@ final class OnboardingViewModel {
                 context: context
             )
 
-            await syncService.syncAll(modelContext: context, userId: userId)
+            await syncService.sync(
+                modelContext: context,
+                userId: userId,
+                mode: .full,
+                scope: .all,
+                force: true
+            )
             await NotificationService.shared.rescheduleAllReminders(userId: userId, context: context)
             appState.finishOnboarding()
         } catch {

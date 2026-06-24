@@ -243,7 +243,7 @@ final class ActiveWorkoutViewModel: Identifiable {
 
         let session = WorkoutSession(
             id: sessionId,
-            userId: userId,
+            userId: userId.lowercased(),
             name: workoutName,
             type: .weights,
             startedAt: workoutStartTime,
@@ -254,6 +254,7 @@ final class ActiveWorkoutViewModel: Identifiable {
             synced: false
         )
         context.insert(session)
+        session.markPendingSync()
         try? context.save()
 
         completionStats = WorkoutCompletionStats(
@@ -267,9 +268,7 @@ final class ActiveWorkoutViewModel: Identifiable {
         showRestTimer = false
         showCompletionSheet = true
 
-        Task {
-            await syncService.syncAll(modelContext: context, userId: userId)
-        }
+        syncService.schedulePush(modelContext: context, userId: userId.lowercased())
     }
 
     // MARK: - Private

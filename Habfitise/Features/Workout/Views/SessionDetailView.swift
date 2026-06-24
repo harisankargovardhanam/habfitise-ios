@@ -7,12 +7,14 @@ struct SessionDetailView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(SyncService.self) private var syncService
 
     let session: WorkoutSession
     var showsDoneButton: Bool = false
 
     @Query private var sets: [ExerciseSet]
     @State private var didCreateTemplate = false
+    @State private var showDeleteConfirm = false
 
     private let sheetBackground = Color(hex: "#111111")
     private let cardBackground = Color(hex: "#2A2A2A")
@@ -50,12 +52,29 @@ struct SessionDetailView: View {
         .navigationTitle("Session")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(Color(hex: "#EF4444"))
+                }
+            }
+
             if showsDoneButton {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .foregroundStyle(accentGreen)
                 }
             }
+        }
+        .alert("Delete workout?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                deleteSession()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This workout and its sets will be removed from all your devices.")
         }
     }
 
@@ -213,7 +232,7 @@ struct SessionDetailView: View {
         guard !didCreateTemplate else { return }
 
         let template = WorkoutTemplate(
-            userId: session.userId,
+            userId: session.userId.lowercased(),
             name: session.name,
             type: session.type,
             exercises: [],
@@ -250,6 +269,34 @@ struct SessionDetailView: View {
         try? modelContext.save()
         didCreateTemplate = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func deleteSession() {
+        let normalizedUserId = session.userId.lowercased()
+
+        for set in sets {
+            if set.synced {
+                SyncDeletionQueue.record(
+                    table: SyncTable.workoutSets,
+                    id: set.id,
+                    userId: normalizedUserId
+                )
+            }
+            modelContext.delete(set)
+        }
+
+        if session.synced {
+            SyncDeletionQueue.record(
+                table: SyncTable.workoutSessions,
+                id: session.id,
+                userId: normalizedUserId
+            )
+        }
+        modelContext.delete(session)
+        try? modelContext.save()
+
+        syncService.schedulePush(modelContext: modelContext, userId: normalizedUserId)
+        dismiss()
     }
 
     private func inferExerciseType(from sets: [ExerciseSet]) -> ExerciseType {

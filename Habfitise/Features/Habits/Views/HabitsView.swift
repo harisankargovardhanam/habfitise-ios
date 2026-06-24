@@ -22,6 +22,7 @@ struct HabitsView: View {
 
 struct HabitsContentView: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(SyncService.self) private var syncService
     let userId: String
     var showsBackButton = false
 
@@ -35,7 +36,8 @@ struct HabitsContentView: View {
     @Query private var waterGoals: [WaterGoal]
 
     init(userId: String, showsBackButton: Bool = false) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
         self.showsBackButton = showsBackButton
 
         let calendar = Calendar.current
@@ -48,14 +50,14 @@ struct HabitsContentView: View {
 
         _habits = Query(
             filter: #Predicate<Habit> { habit in
-                habit.userId == userId && habit.isActive
+                habit.userId == normalizedUserId && habit.isActive
             },
             sort: [SortDescriptor(\.createdAt)]
         )
 
         _weekCompletions = Query(
             filter: #Predicate<HabitCompletion> { completion in
-                completion.userId == userId
+                completion.userId == normalizedUserId
                     && completion.completedDate >= weekStart
                     && completion.completedDate < weekEnd
             },
@@ -64,7 +66,7 @@ struct HabitsContentView: View {
 
         _waterLogs = Query(
             filter: #Predicate<WaterLog> { log in
-                log.userId == userId
+                log.userId == normalizedUserId
                     && log.loggedAt >= todayStart
                     && log.loggedAt < tomorrow
             },
@@ -73,7 +75,7 @@ struct HabitsContentView: View {
 
         _waterGoals = Query(
             filter: #Predicate<WaterGoal> { goal in
-                goal.userId == userId
+                goal.userId == normalizedUserId
             }
         )
     }
@@ -104,7 +106,7 @@ struct HabitsContentView: View {
                 Button("Delete", role: .destructive) {
                     HabfitiseHaptics.destructive()
                     if let habit = viewModel.habitPendingDelete {
-                        viewModel.deleteHabit(habit, context: modelContext)
+                        viewModel.deleteHabit(habit, context: modelContext, syncService: syncService)
                     }
                 }
                 Button("Cancel", role: .cancel) {
@@ -151,7 +153,8 @@ struct HabitsContentView: View {
                                         habit,
                                         userId: userId,
                                         completions: weekCompletions,
-                                        context: modelContext
+                                        context: modelContext,
+                                        syncService: syncService
                                     ) != nil {
                                         HabfitiseHaptics.milestone()
                                     }
@@ -160,7 +163,8 @@ struct HabitsContentView: View {
                                     viewModel.undoHabitToday(
                                         habit,
                                         completions: weekCompletions,
-                                        context: modelContext
+                                        context: modelContext,
+                                        syncService: syncService
                                     )
                                 },
                                 onDelete: {
@@ -183,6 +187,7 @@ struct HabitsContentView: View {
                                 at: index,
                                 userId: userId,
                                 context: modelContext,
+                                syncService: syncService,
                                 cupCount: HabitsViewModel.homeWaterCupCount
                             )
                             runWaterCelebrationIfNeeded()
@@ -191,7 +196,8 @@ struct HabitsContentView: View {
                             viewModel.addWaterLog(
                                 amountMl: AppConstants.Water.dropLogML,
                                 userId: userId,
-                                context: modelContext
+                                context: modelContext,
+                                syncService: syncService
                             )
                         }
                     )
@@ -206,6 +212,7 @@ struct HabitsContentView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .cloudRefreshable(scope: .habits, perform: syncViewModel)
     }
 
     // MARK: - Header
@@ -269,6 +276,7 @@ struct HabitsContentView: View {
             waterLogs: waterLogs,
             waterGoal: waterGoals.first
         )
+        WidgetDataPublisher.refresh(context: modelContext, userId: userId)
     }
 
     private static func mondayStart(for date: Date, calendar: Calendar) -> Date {

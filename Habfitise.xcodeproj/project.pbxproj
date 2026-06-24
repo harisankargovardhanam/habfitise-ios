@@ -123,6 +123,18 @@
 		F4B235633DAE92978C54060A /* WorkoutViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2904B777D37611A86E39AAA3 /* WorkoutViewModel.swift */; };
 		F60F479F1728E4C6966E476D /* ProgressDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33DAC807653F09FAEDF8AAF /* ProgressDashboardView.swift */; };
 		FF9E125BD07FB809CFA652E7 /* ActiveWorkoutComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37CE591F9B412ADFC434B0B /* ActiveWorkoutComponents.swift */; };
+
+		a1b2c3d4e5f6000100000001 /* WidgetSharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000011 /* WidgetSharedConstants.swift */; };
+		a1b2c3d4e5f6000100000002 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000012 /* WidgetSnapshot.swift */; };
+		a1b2c3d4e5f6000100000003 /* WidgetDataPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000013 /* WidgetDataPublisher.swift */; };
+		a1b2c3d4e5f6000100000004 /* WidgetSharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000011 /* WidgetSharedConstants.swift */; };
+		a1b2c3d4e5f6000100000005 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000012 /* WidgetSnapshot.swift */; };
+		a1b2c3d4e5f6000100000006 /* VAYAWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000014 /* VAYAWidgetsBundle.swift */; };
+		a1b2c3d4e5f6000100000007 /* VAYAWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000015 /* VAYAWidgetViews.swift */; };
+		a1b2c3d4e5f6000100000008 /* TasksWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000016 /* TasksWidget.swift */; };
+		a1b2c3d4e5f6000100000009 /* HabitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000017 /* HabitsWidget.swift */; };
+		a1b2c3d4e5f600010000000a /* WaterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000018 /* WaterWidget.swift */; };
+		a1b2c3d4e5f600010000000b /* VAYAWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = a1b2c3d4e5f6000100000020 /* VAYAWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -245,7 +257,44 @@
 		FA8FA168D88548DB488B6B29 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FE444EDF96270AC7B99EFEF4 /* BentoDashboardTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BentoDashboardTheme.swift; sourceTree = "<group>"; };
 		FEC25A21691FC433B29AD025 /* BentoWaterIntakeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BentoWaterIntakeCard.swift; sourceTree = "<group>"; };
+
+		a1b2c3d4e5f6000100000011 /* WidgetSharedConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSharedConstants.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000012 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000013 /* WidgetDataPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataPublisher.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000014 /* VAYAWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VAYAWidgetsBundle.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000015 /* VAYAWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VAYAWidgetViews.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000016 /* TasksWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksWidget.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000017 /* HabitsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitsWidget.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000018 /* WaterWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterWidget.swift; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000019 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		a1b2c3d4e5f600010000001a /* VAYAWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VAYAWidgets.entitlements; sourceTree = "<group>"; };
+		a1b2c3d4e5f6000100000020 /* VAYAWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VAYAWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+
+/* Begin PBXContainerItemProxy section */
+		a1b2c3d4e5f6000100000040 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72C398987F577430D7A3B0DC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = a1b2c3d4e5f6000100000042;
+			remoteInfo = VAYAWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		a1b2c3d4e5f6000100000041 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				a1b2c3d4e5f600010000000b /* VAYAWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0677FE5CCF66D8C9CAA04FDD /* Frameworks */ = {
@@ -254,6 +303,14 @@
 			files = (
 				E99AA8D5F66C343C05F12562 /* Supabase in Frameworks */,
 				71088820E91DADF9741E6F87 /* RevenueCat in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		a1b2c3d4e5f6000100000043 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +339,7 @@
 			isa = PBXGroup;
 			children = (
 				253861E22DE52161AF757BBE /* VAYA.app */,
+				a1b2c3d4e5f6000100000020 /* VAYAWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -336,6 +394,7 @@
 			children = (
 				17A19853F5F8E49E4559CFFF /* Config */,
 				AEF06CF78DFA41F2B33027C3 /* Habfitise */,
+				a1b2c3d4e5f6000100000031 /* VAYAWidgets */,
 				1681BEC83CF1EB8099D2C5A1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -808,6 +867,7 @@
 				03C59731C9B4D41994C65A4D /* Constants */,
 				D513CB01FCADACB198A405DF /* Extensions */,
 				22A4719BC8D29BC6B1F2BCE6 /* Theme */,
+				a1b2c3d4e5f6000100000030 /* WidgetKit */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -873,6 +933,31 @@
 			path = HealthKitService;
 			sourceTree = "<group>";
 		};
+
+		a1b2c3d4e5f6000100000030 /* WidgetKit */ = {
+			isa = PBXGroup;
+			children = (
+				a1b2c3d4e5f6000100000011 /* WidgetSharedConstants.swift */,
+				a1b2c3d4e5f6000100000012 /* WidgetSnapshot.swift */,
+				a1b2c3d4e5f6000100000013 /* WidgetDataPublisher.swift */,
+			);
+			path = WidgetKit;
+			sourceTree = "<group>";
+		};
+		a1b2c3d4e5f6000100000031 /* VAYAWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				a1b2c3d4e5f6000100000014 /* VAYAWidgetsBundle.swift */,
+				a1b2c3d4e5f6000100000015 /* VAYAWidgetViews.swift */,
+				a1b2c3d4e5f6000100000016 /* TasksWidget.swift */,
+				a1b2c3d4e5f6000100000017 /* HabitsWidget.swift */,
+				a1b2c3d4e5f6000100000018 /* WaterWidget.swift */,
+				a1b2c3d4e5f6000100000019 /* Info.plist */,
+				a1b2c3d4e5f600010000001a /* VAYAWidgets.entitlements */,
+			);
+			path = VAYAWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -883,10 +968,12 @@
 				2E703C9CD9AA0067DAF76700 /* Sources */,
 				E575A3330B291D4C4A4C7BFE /* Resources */,
 				0677FE5CCF66D8C9CAA04FDD /* Frameworks */,
+				a1b2c3d4e5f6000100000041 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				a1b2c3d4e5f6000100000046 /* PBXTargetDependency */,
 			);
 			name = Habfitise;
 			packageProductDependencies = (
@@ -897,7 +984,34 @@
 			productReference = 253861E22DE52161AF757BBE /* VAYA.app */;
 			productType = "com.apple.product-type.application";
 		};
+
+		a1b2c3d4e5f6000100000042 /* VAYAWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = a1b2c3d4e5f6000100000047 /* Build configuration list for PBXNativeTarget "VAYAWidgets" */;
+			buildPhases = (
+				a1b2c3d4e5f6000100000045 /* Sources */,
+				a1b2c3d4e5f6000100000044 /* Resources */,
+				a1b2c3d4e5f6000100000043 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VAYAWidgets;
+			productName = VAYAWidgets;
+			productReference = a1b2c3d4e5f6000100000020 /* VAYAWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
+
+
+/* Begin PBXTargetDependency section */
+		a1b2c3d4e5f6000100000046 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = a1b2c3d4e5f6000100000042 /* VAYAWidgets */;
+			targetProxy = a1b2c3d4e5f6000100000040 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		72C398987F577430D7A3B0DC /* Project object */ = {
@@ -907,6 +1021,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					3E15D69707B6E2E036A84D99 = {
+						ProvisioningStyle = Automatic;
+					};
+					a1b2c3d4e5f6000100000042 = {
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -930,6 +1047,7 @@
 			projectRoot = "";
 			targets = (
 				3E15D69707B6E2E036A84D99 /* Habfitise */,
+				a1b2c3d4e5f6000100000042 /* VAYAWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -942,6 +1060,14 @@
 				813ECE4450197556DB3D584C /* Assets.xcassets in Resources */,
 				4B41D878EF811A771A251B86 /* HabfitiseLoading.mp4 in Resources */,
 				546C68F7C1504858A4ABEED3 /* success.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		a1b2c3d4e5f6000100000044 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1062,7 +1188,26 @@
 				A18E85FC54E0BB045D0EA205 /* WorkoutModels.swift in Sources */,
 				76944FAC8F3A568A5F35D909 /* WorkoutView.swift in Sources */,
 				F4B235633DAE92978C54060A /* WorkoutViewModel.swift in Sources */,
+
+				a1b2c3d4e5f6000100000001 /* WidgetSharedConstants.swift in Sources */,
+				a1b2c3d4e5f6000100000002 /* WidgetSnapshot.swift in Sources */,
+				a1b2c3d4e5f6000100000003 /* WidgetDataPublisher.swift in Sources */,
 				1BE8E0F2729B9F2930D81F1D /* WorkoutsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		a1b2c3d4e5f6000100000045 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				a1b2c3d4e5f6000100000004 /* WidgetSharedConstants.swift in Sources */,
+				a1b2c3d4e5f6000100000005 /* WidgetSnapshot.swift in Sources */,
+				a1b2c3d4e5f6000100000006 /* VAYAWidgetsBundle.swift in Sources */,
+				a1b2c3d4e5f6000100000007 /* VAYAWidgetViews.swift in Sources */,
+				a1b2c3d4e5f6000100000008 /* TasksWidget.swift in Sources */,
+				a1b2c3d4e5f6000100000009 /* HabitsWidget.swift in Sources */,
+				a1b2c3d4e5f600010000000a /* WaterWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1232,6 +1377,59 @@
 			};
 			name = Debug;
 		};
+
+		a1b2c3d4e5f6000100000048 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = VAYAWidgets/VAYAWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L2P29NV9MN;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VAYAWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.habfitise.app.VAYAWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		a1b2c3d4e5f6000100000049 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = VAYAWidgets/VAYAWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L2P29NV9MN;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VAYAWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.habfitise.app.VAYAWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1249,6 +1447,16 @@
 			buildConfigurations = (
 				45F61AE55542C2780039F863 /* Debug */,
 				22BAE0275018F1A7C1BF9E66 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+
+		a1b2c3d4e5f6000100000047 /* Build configuration list for PBXNativeTarget "VAYAWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				a1b2c3d4e5f6000100000048 /* Debug */,
+				a1b2c3d4e5f6000100000049 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

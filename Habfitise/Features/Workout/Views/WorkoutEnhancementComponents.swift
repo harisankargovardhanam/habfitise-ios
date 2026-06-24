@@ -259,6 +259,7 @@ struct BodyWeightLineChart: View {
 struct BodyWeightLogSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(SyncService.self) private var syncService
 
     let userId: String
     @State private var weightText = ""
@@ -275,11 +276,7 @@ struct BodyWeightLogSheet: View {
                     .padding(.horizontal, 20)
 
                 Button("Save") {
-                    guard let weight = Double(weightText), weight > 0 else { return }
-                    let entry = BodyWeightEntry(userId: userId, weightKg: weight, synced: false)
-                    modelContext.insert(entry)
-                    try? modelContext.save()
-                    dismiss()
+                    saveWeight()
                 }
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
@@ -302,6 +299,27 @@ struct BodyWeightLogSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    private func saveWeight() {
+        guard let weight = Double(weightText), weight > 0 else { return }
+
+        let normalizedUserId = userId.lowercased()
+        let entry = BodyWeightEntry(userId: normalizedUserId, weightKg: weight, synced: false)
+        modelContext.insert(entry)
+
+        let userIdConst = normalizedUserId
+        if let profile = try? modelContext.fetch(FetchDescriptor<UserProfile>(
+            predicate: #Predicate { $0.userId == userIdConst }
+        )).first {
+            profile.weightKg = weight
+            profile.synced = false
+            profile.updatedAt = .now
+        }
+
+        try? modelContext.save()
+        syncService.schedulePush(modelContext: modelContext, userId: normalizedUserId)
+        dismiss()
     }
 }
 

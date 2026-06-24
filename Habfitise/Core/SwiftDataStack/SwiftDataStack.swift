@@ -386,10 +386,38 @@ final class SwiftDataStack {
     }
 
     func userProfileExists(userId: String, context: ModelContext) -> Bool {
+        let normalizedUserId = userId.lowercased()
         let descriptor = FetchDescriptor<UserProfile>(
-            predicate: #Predicate { $0.userId == userId }
+            predicate: #Predicate { $0.userId == normalizedUserId }
         )
         return ((try? context.fetchCount(descriptor)) ?? 0) > 0
+    }
+
+    /// True when cloud restore pulled habits, tasks, workouts, etc. even if profile row is missing.
+    func hasReturningUserData(userId: String, context: ModelContext) -> Bool {
+        let normalizedUserId = userId.lowercased()
+
+        if ((try? context.fetchCount(FetchDescriptor<TaskRecord>(
+            predicate: #Predicate { $0.userId == normalizedUserId }
+        ))) ?? 0) > 0 { return true }
+
+        if ((try? context.fetchCount(FetchDescriptor<Habit>(
+            predicate: #Predicate { $0.userId == normalizedUserId }
+        ))) ?? 0) > 0 { return true }
+
+        if ((try? context.fetchCount(FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate { $0.userId == normalizedUserId }
+        ))) ?? 0) > 0 { return true }
+
+        if ((try? context.fetchCount(FetchDescriptor<HabitCompletion>(
+            predicate: #Predicate { $0.userId == normalizedUserId }
+        ))) ?? 0) > 0 { return true }
+
+        if ((try? context.fetchCount(FetchDescriptor<WaterLog>(
+            predicate: #Predicate { $0.userId == normalizedUserId }
+        ))) ?? 0) > 0 { return true }
+
+        return false
     }
 
     func deleteAllData(for userId: String, context: ModelContext) throws {

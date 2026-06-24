@@ -132,6 +132,73 @@ struct WorkoutChipRow: View {
     }
 }
 
+// MARK: - Home status rows (read-only glance — edit on Habits / Tasks tabs)
+
+struct BentoHomeStatusRow: View {
+    enum Style {
+        case habit
+        case task
+
+        var pendingLabel: String {
+            switch self {
+            case .habit: "Not yet"
+            case .task: "Open"
+            }
+        }
+    }
+
+    @Environment(ThemeManager.self) private var theme
+
+    let title: String
+    let isDone: Bool
+    let style: Style
+
+    var body: some View {
+        HStack(spacing: HabfitiseSpacing.md) {
+            Text(title)
+                .font(.system(size: 14, weight: isDone ? .regular : .semibold, design: .rounded))
+                .foregroundStyle(isDone ? theme.colors.textSecondary : theme.colors.textPrimary)
+                .strikethrough(isDone, color: theme.colors.textTertiary)
+                .lineLimit(1)
+                .animation(.easeOut(duration: 0.2), value: isDone)
+
+            Spacer(minLength: 0)
+
+            statusBadge
+        }
+        .padding(.horizontal, HabfitiseSpacing.md)
+        .padding(.vertical, HabfitiseSpacing.sm + 2)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isDone
+                    ? theme.colors.fieldBackground.opacity(0.55)
+                    : theme.colors.fieldBackground)
+        )
+    }
+
+    private var statusBadge: some View {
+        HStack(spacing: 4) {
+            if isDone {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            Text(isDone ? "Done" : style.pendingLabel)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+        }
+        .foregroundStyle(isDone ? theme.colors.accentGreen : theme.colors.textSecondary)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(
+            Capsule().fill(
+                isDone
+                    ? theme.colors.accentGreen.opacity(0.14)
+                    : theme.colors.chipBackground
+            )
+        )
+        .accessibilityLabel(isDone ? "Completed" : style.pendingLabel)
+    }
+}
+
 // MARK: - Habit Chip
 
 struct HabitCompletionChip: View {
@@ -140,23 +207,19 @@ struct HabitCompletionChip: View {
 
     var body: some View {
         HStack(spacing: HabfitiseSpacing.xs) {
-            if item.isCompleted {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .bold))
-            }
             Text(item.name)
                 .font(HabfitiseTypography.caption)
+                .strikethrough(item.isCompleted, color: theme.colors.textTertiary)
+            if item.isCompleted {
+                Text("Done")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.accentGreen)
+            }
         }
         .habfitiseChipStyle(
             color: item.isCompleted ? theme.colors.chipDone : theme.colors.cardBackground,
-            textColor: theme.colors.accentGreen
+            textColor: item.isCompleted ? theme.colors.textSecondary : theme.colors.textPrimary
         )
-        .overlay {
-            if !item.isCompleted {
-                Capsule()
-                    .strokeBorder(theme.colors.accentGreen, lineWidth: 1)
-            }
-        }
     }
 }
 
@@ -168,16 +231,26 @@ struct TaskRowCompact: View {
 
     var body: some View {
         HStack(spacing: HabfitiseSpacing.md) {
-            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(task.isComplete ? theme.colors.accentGreen : theme.colors.textTertiary)
-
             Text(task.title)
                 .font(HabfitiseTypography.body)
-                .foregroundStyle(theme.colors.textPrimary)
-                .strikethrough(task.isComplete)
+                .foregroundStyle(task.isComplete ? theme.colors.textSecondary : theme.colors.textPrimary)
+                .strikethrough(task.isComplete, color: theme.colors.textTertiary)
                 .lineLimit(1)
 
             Spacer()
+
+            Text(task.isComplete ? "Done" : "Open")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(task.isComplete ? theme.colors.accentGreen : theme.colors.textSecondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(
+                        task.isComplete
+                            ? theme.colors.accentGreen.opacity(0.14)
+                            : theme.colors.chipBackground
+                    )
+                )
         }
         .padding(.vertical, HabfitiseSpacing.xs)
     }

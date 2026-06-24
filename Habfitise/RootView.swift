@@ -20,7 +20,7 @@ struct RootView: View {
     private var rootContent: some View {
         switch appState.authState {
         case .loading:
-            loadingView
+            LaunchSplashView(mode: .startup)
 
         case .unauthenticated, .error:
             if AppConstants.Backend.useLocalOnly {
@@ -31,17 +31,13 @@ struct RootView: View {
 
         case .authenticated:
             if appState.isRestoringFromCloud {
-                CloudRestoreView()
+                LaunchSplashView(mode: .syncing)
             } else if appState.needsOnboarding {
                 OnboardingView(skipWelcome: true)
             } else {
                 MainTabView()
             }
         }
-    }
-
-    private var loadingView: some View {
-        LaunchSplashView()
     }
 
     private var upgradeBinding: Binding<UpgradeTrigger?> {

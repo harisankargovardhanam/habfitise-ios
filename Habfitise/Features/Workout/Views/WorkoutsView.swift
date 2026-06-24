@@ -60,27 +60,28 @@ private struct WorkoutsContentView: View {
         userId: String,
         onOpenBuilder: @escaping (WorkoutType?, WorkoutTemplate?) -> Void
     ) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
         self.onOpenBuilder = onOpenBuilder
 
         _templates = Query(
-            filter: #Predicate<WorkoutTemplate> { $0.userId == userId },
+            filter: #Predicate<WorkoutTemplate> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.lastPerformedAt, order: .reverse)]
         )
         _recentSessions = Query(
             filter: #Predicate<WorkoutSession> { session in
-                session.userId == userId && session.completedAt != nil
+                session.userId == normalizedUserId && session.completedAt != nil
             },
             sort: [SortDescriptor(\.startedAt, order: .reverse)]
         )
         _missedWorkouts = Query(
             filter: #Predicate<MissedWorkout> { missed in
-                missed.userId == userId
+                missed.userId == normalizedUserId
             },
             sort: [SortDescriptor(\.scheduledDate, order: .reverse)]
         )
         _exerciseSets = Query(
-            filter: #Predicate<ExerciseSet> { $0.userId == userId }
+            filter: #Predicate<ExerciseSet> { $0.userId == normalizedUserId }
         )
     }
 
@@ -176,6 +177,9 @@ private struct WorkoutsContentView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .cloudRefreshable(scope: .workout) {
+            await refreshEnhancementData()
+        }
         .background(theme.colors.background.ignoresSafeArea())
         .habfitiseTabScreen(immersiveHeader: true)
         .sheet(item: $selectedSession) { session in
@@ -195,11 +199,14 @@ private struct WorkoutsContentView: View {
             }
             .presentationDragIndicator(.visible)
         }
-        .onAppear(perform: refreshEnhancementData)
-        .onChange(of: recentSessions.count) { _, _ in refreshEnhancementData() }
+        .onAppear { Task { await refreshEnhancementData() } }
+        .onChange(of: recentSessions.count) { _, _ in Task { await refreshEnhancementData() } }
+        .onChange(of: recentSessions.map(\.id)) { _, _ in Task { await refreshEnhancementData() } }
+        .onChange(of: exerciseSets.count) { _, _ in Task { await refreshEnhancementData() } }
     }
 
-    private func refreshEnhancementData() {
+    @MainActor
+    private func refreshEnhancementData() async {
         streakStats = WorkoutAnalytics.streakStats(userId: userId, context: modelContext)
         showAISuggestion = !UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.dismissedWorkoutSuggestion)
         aiSuggestion = WorkoutAnalytics.localWorkoutSuggestion(sessions: recentSessions, sets: exerciseSets)

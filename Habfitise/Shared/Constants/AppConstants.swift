@@ -32,6 +32,11 @@ enum AppConstants {
         static func onboardingCompleted(for userId: String) -> String {
             "onboardingCompleted_\(userId)"
         }
+
+        static func lastSuccessfulSyncAt(for userId: String) -> String {
+            "lastSuccessfulSyncAt_\(userId.lowercased())"
+        }
+
         static let dailyWaterGoalML = "dailyWaterGoalML"
         static let lastSuccessfulSyncAt = "lastSuccessfulSyncAt"
         static let localUserId = "localUserId"
@@ -41,6 +46,8 @@ enum AppConstants {
         static let dismissedWorkoutSuggestion = "dismissedWorkoutSuggestion"
         static let preferredWorkoutTime = "preferredWorkoutTime"
         static let notificationsEnabled = "notificationsEnabled"
+        /// Debug toggle in Profile — forces Pro (incl. cloud sync) for testing.
+        static let debugForcePro = "debugForcePro"
     }
 
     enum Notifications {
@@ -61,6 +68,10 @@ enum AppConstants {
 
     enum Sync {
         static let batchSize = 50
+        /// Minimum seconds between automatic background syncs.
+        static let minimumIntervalSeconds: TimeInterval = 60
+        /// Overlap window subtracted from last sync time for incremental pulls.
+        static let overlapSeconds: TimeInterval = 300
     }
 
     /// Bump when making breaking SwiftData schema changes (new store file is created).

@@ -1,24 +1,123 @@
 import SwiftUI
 
-/// Centered launch / loading splash — theme background with the matching logo variant.
+enum LaunchSplashMode {
+    case startup
+    case syncing
+}
+
+/// Single launch surface — logo + live status (replaces separate loading + welcome-back screens).
 struct LaunchSplashView: View {
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(SyncService.self) private var syncService
 
-    var logoHeight: CGFloat = 56
-    var logoMaxWidth: CGFloat = 220
+    var mode: LaunchSplashMode = .startup
+
+    @State private var pulse = false
+    @State private var ringRotation: Double = 0
 
     var body: some View {
         ZStack {
             themeManager.colors.background
                 .ignoresSafeArea()
 
-            HabfitiseLogoView(
-                height: logoHeight,
-                maxWidth: logoMaxWidth,
-                style: .automatic
+            RadialGradient(
+                colors: [
+                    themeManager.colors.accentGreen.opacity(mode == .syncing ? 0.12 : 0.08),
+                    themeManager.colors.background
+                ],
+                center: .center,
+                startRadius: 20,
+                endRadius: 280
             )
+            .ignoresSafeArea()
+
+            VStack(spacing: HabfitiseSpacing.xl) {
+                Spacer()
+
+                ZStack {
+                    if mode == .syncing {
+                        Circle()
+                            .stroke(
+                                themeManager.colors.accentGreen.opacity(0.14),
+                                lineWidth: 3
+                            )
+                            .frame(width: 108, height: 108)
+
+                        Circle()
+                            .trim(from: 0.08, to: 0.92)
+                            .stroke(
+                                AngularGradient(
+                                    colors: [
+                                        themeManager.colors.accentGreen.opacity(0.12),
+                                        themeManager.colors.accentGreen,
+                                        themeManager.colors.accentGreen.opacity(0.12)
+                                    ],
+                                    center: .center
+                                ),
+                                style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
+                            )
+                            .frame(width: 108, height: 108)
+                            .rotationEffect(.degrees(ringRotation))
+                    }
+
+                    HabfitiseLogoView(height: 52, maxWidth: 200, style: .automatic)
+                        .scaleEffect(mode == .syncing && pulse ? 1.02 : 0.98)
+                }
+
+                Text(statusMessage)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(themeManager.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: statusMessage)
+                    .padding(.horizontal, HabfitiseSpacing.xxxl)
+
+                if mode == .syncing {
+                    HStack(spacing: 8) {
+                        ForEach(0..<3, id: \.self) { index in
+                            Circle()
+                                .fill(themeManager.colors.accentGreen)
+                                .frame(width: 6, height: 6)
+                                .opacity(pulse ? 1 : 0.35)
+                                .animation(
+                                    .easeInOut(duration: 0.55)
+                                        .repeatForever(autoreverses: true)
+                                        .delay(Double(index) * 0.16),
+                                    value: pulse
+                                )
+                        }
+                    }
+                }
+
+                Spacer()
+                Spacer()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            pulse = true
+            if mode == .syncing {
+                withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
+                    ringRotation = 360
+                }
+            }
+        }
+    }
+
+    private var statusMessage: String {
+        switch mode {
+        case .startup:
+            return "Starting VAYA…"
+        case .syncing:
+            let phase = syncService.syncPhase.message
+            if !phase.isEmpty {
+                return phase
+            }
+            if let friendly = syncService.userFacingStatusMessage {
+                return friendly
+            }
+            return "Syncing your data…"
+        }
     }
 }
 

@@ -17,11 +17,12 @@ final class ProfileViewModel {
 
     var isSaving = false
     var didSave = false
+    var accountEmail = ""
 
     private var userId = ""
 
     func load(profile: UserProfile?, userId: String) {
-        self.userId = userId
+        self.userId = userId.lowercased()
         guard let profile else { return }
 
         displayName = profile.displayName
@@ -72,6 +73,20 @@ final class ProfileViewModel {
 
     var goalSubtitle: String {
         "Goal: \(goalLabel)"
+    }
+
+    func refreshAccountEmail() async {
+        guard !AppConstants.Backend.useLocalOnly else {
+            accountEmail = ""
+            return
+        }
+
+        await SupabaseManager.shared.refreshSession()
+        accountEmail = SupabaseManager.shared.currentUser?.email ?? ""
+    }
+
+    var accountEmailLabel: String {
+        accountEmail.isEmpty ? "Not available" : accountEmail
     }
 
     var targetWeightLabel: String {

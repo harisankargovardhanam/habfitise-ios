@@ -21,6 +21,7 @@ struct TasksView: View {
 
 struct TasksContentView: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(SyncService.self) private var syncService
     let userId: String
     var showsBackButton = false
 
@@ -32,19 +33,20 @@ struct TasksContentView: View {
     @Query private var habits: [Habit]
 
     init(userId: String, showsBackButton: Bool = false) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
         self.showsBackButton = showsBackButton
 
         _tasks = Query(
             filter: #Predicate<TaskRecord> { task in
-                task.userId == userId
+                task.userId == normalizedUserId
             },
             sort: [SortDescriptor(\.dueDate)]
         )
 
         _habits = Query(
             filter: #Predicate<Habit> { habit in
-                habit.userId == userId && habit.isActive
+                habit.userId == normalizedUserId && habit.isActive
             },
             sort: [SortDescriptor(\.name)]
         )
@@ -72,6 +74,7 @@ struct TasksContentView: View {
                 if let task = viewModel.taskPendingReschedule {
                     RescheduleTaskSheet(task: task) { date in
                         viewModel.rescheduleTask(task, to: date, context: modelContext)
+                        pushToCloud()
                     }
                 }
             }
@@ -80,6 +83,7 @@ struct TasksContentView: View {
                     HabfitiseHaptics.destructive()
                     if let task = viewModel.taskPendingDelete {
                         viewModel.deleteTask(task, context: modelContext)
+                        pushToCloud()
                     }
                 }
                 Button("Cancel", role: .cancel) {
@@ -112,6 +116,7 @@ struct TasksContentView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+        .cloudRefreshable(scope: .tasks, perform: syncViewModel)
     }
 
     private var tasksHeader: some View {
@@ -174,6 +179,7 @@ struct TasksContentView: View {
                             showsDueChip: section != .today,
                             onToggle: {
                                 viewModel.completeTask(task, context: modelContext)
+                                pushToCloud()
                             },
                             onDelete: {
                                 viewModel.requestDelete(task)
@@ -237,6 +243,11 @@ struct TasksContentView: View {
 
     private func syncViewModel() {
         viewModel.bind(tasks: tasks)
+        WidgetDataPublisher.refresh(context: modelContext, userId: userId)
+    }
+
+    private func pushToCloud() {
+        syncService.schedulePush(modelContext: modelContext, userId: userId)
     }
 }
 

@@ -239,7 +239,13 @@ final class WorkoutBuilderViewModel {
 
         refreshWorkoutReminder(for: savedTemplate)
         Task {
-            await syncService.syncAll(modelContext: context, userId: userId)
+            await syncService.sync(
+                modelContext: context,
+                userId: userId,
+                mode: .incremental,
+                scope: .workout,
+                force: true
+            )
         }
         return true
     }
@@ -277,8 +283,19 @@ final class WorkoutBuilderViewModel {
 
     func logStartWeight(_ kg: Double, context: ModelContext) {
         guard kg > 0 else { return }
-        let entry = BodyWeightEntry(userId: userId, weightKg: kg, synced: false)
+        let normalizedUserId = userId.lowercased()
+        let entry = BodyWeightEntry(userId: normalizedUserId, weightKg: kg, synced: false)
         context.insert(entry)
+
+        let userIdConst = normalizedUserId
+        if let profile = try? context.fetch(FetchDescriptor<UserProfile>(
+            predicate: #Predicate { $0.userId == userIdConst }
+        )).first {
+            profile.weightKg = kg
+            profile.synced = false
+            profile.updatedAt = .now
+        }
+
         profileBodyWeightKg = kg
         try? context.save()
         showWeightLogPrompt = false
@@ -369,7 +386,7 @@ final class WorkoutBuilderViewModel {
         let row = sets[index]
         let exerciseSet = ExerciseSet(
             sessionId: sessionId,
-            userId: userId,
+            userId: userId.lowercased(),
             exerciseName: exercise.name,
             exerciseCategory: exercise.category.rawValue,
             setNumber: row.setNumber,
@@ -381,6 +398,7 @@ final class WorkoutBuilderViewModel {
             completedAt: .now,
             synced: false
         )
+        exerciseSet.markPendingSync()
         context.insert(exerciseSet)
 
         let previousWeight = SwiftDataStack.shared.fetchPR(
@@ -539,7 +557,7 @@ final class WorkoutBuilderViewModel {
 
         let session = WorkoutSession(
             id: sessionId,
-            userId: userId,
+            userId: userId.lowercased(),
             templateId: template?.id,
             name: payload.workoutName,
             type: workoutType,
@@ -585,9 +603,7 @@ final class WorkoutBuilderViewModel {
             refreshWorkoutReminder(for: newTemplate)
         }
 
-        Task {
-            await syncService.syncAll(modelContext: context, userId: userId)
-        }
+        syncService.schedulePush(modelContext: context, userId: userId.lowercased())
     }
 
     private func fetchLatestTemplate(userId: String, name: String, context: ModelContext) -> WorkoutTemplate? {

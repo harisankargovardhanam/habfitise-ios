@@ -140,7 +140,7 @@ final class AuthViewModel {
                 throw AuthViewModelError.sessionUnavailable
             }
 
-            let userId = session.user.id.uuidString
+            let userId = session.user.id.uuidString.lowercased()
             authState = .authenticated(userId: userId)
             appState.setAuthenticated(userId: userId, context: context)
         } catch AuthViewModelError.emailConfirmationRequired {

@@ -51,15 +51,25 @@ enum SyncDateCoding {
 // MARK: - Supabase row DTOs (match existing VAYA Postgres schema)
 
 enum SyncDTOMapper {
-    /// `profiles.id` is the Supabase auth user id (not the local SwiftData row id).
-    static func userProfile(_ model: UserProfile) -> UserProfileDTO {
-        UserProfileDTO(
-            id: model.userId,
+    static func normalizedUserId(_ userId: String) -> String {
+        userId.lowercased()
+    }
+
+    static func normalizedId(_ id: UUID) -> String {
+        id.uuidString.lowercased()
+    }
+
+    /// `profiles.id` must equal the Supabase auth user id.
+    static func userProfile(_ model: UserProfile, authUserId: String) -> UserProfileDTO {
+        let normalizedAuthId = authUserId.lowercased()
+        return UserProfileDTO(
+            id: normalizedAuthId,
+            recordUserId: normalizedAuthId,
             displayName: model.displayName,
             age: model.age,
             weightKg: model.weightKg,
             heightCm: model.heightCm,
-            goal: model.goal,
+            goal: model.goal.isEmpty ? "build_habits" : model.goal,
             targetWeightKg: model.targetWeightKg,
             goalDeadline: model.goalDeadline,
             timezone: model.timezone,
@@ -72,9 +82,9 @@ enum SyncDTOMapper {
 
     static func workoutSession(_ model: WorkoutSession) -> WorkoutSessionDTO {
         WorkoutSessionDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
-            templateId: model.templateId?.uuidString,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
+            templateId: model.templateId.map { normalizedId($0) },
             name: model.name,
             type: model.type.rawValue,
             startedAt: model.startedAt,
@@ -92,9 +102,9 @@ enum SyncDTOMapper {
 
     static func exerciseSet(_ model: ExerciseSet) -> ExerciseSetDTO {
         ExerciseSetDTO(
-            id: model.id.uuidString,
-            sessionId: model.sessionId.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            sessionId: normalizedId(model.sessionId),
+            userId: normalizedUserId(model.userId),
             exerciseName: model.exerciseName,
             exerciseCategory: model.exerciseCategory,
             setNumber: model.setNumber,
@@ -111,8 +121,8 @@ enum SyncDTOMapper {
 
     static func habit(_ model: Habit) -> HabitDTO {
         HabitDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
             name: model.name,
             frequency: model.frequency,
             reminderTime: model.reminderTime,
@@ -125,9 +135,9 @@ enum SyncDTOMapper {
 
     static func habitCompletion(_ model: HabitCompletion) -> HabitCompletionDTO {
         HabitCompletionDTO(
-            id: model.id.uuidString,
-            habitId: model.habitId.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            habitId: normalizedId(model.habitId),
+            userId: normalizedUserId(model.userId),
             completedDate: model.completedDate,
             updatedAt: model.updatedAt
         )
@@ -135,21 +145,21 @@ enum SyncDTOMapper {
 
     static func task(_ model: TaskRecord) -> TaskRecordDTO {
         TaskRecordDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
             title: model.title,
             dueDate: model.dueDate,
             isComplete: model.isComplete,
             recurrence: model.recurrence,
-            linkedHabitId: model.linkedHabitId?.uuidString,
+            linkedHabitId: model.linkedHabitId.map { normalizedId($0) },
             updatedAt: model.updatedAt
         )
     }
 
     static func moodCheckin(_ model: MoodCheckin) -> MoodCheckinDTO {
         MoodCheckinDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
             energyScore: model.energyScore,
             moodScore: model.moodScore,
             note: model.note,
@@ -162,8 +172,8 @@ enum SyncDTOMapper {
 
     static func waterLog(_ model: WaterLog) -> WaterLogDTO {
         WaterLogDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
             amountMl: model.amountMl,
             loggedAt: model.loggedAt,
             source: model.source,
@@ -173,8 +183,8 @@ enum SyncDTOMapper {
 
     static func waterGoal(_ model: WaterGoal) -> WaterGoalDTO {
         WaterGoalDTO(
-            id: model.id.uuidString,
-            userId: model.userId,
+            id: normalizedId(model.id),
+            userId: normalizedUserId(model.userId),
             dailyGoalMl: model.dailyGoalMl,
             reminderIntervalMinutes: model.reminderIntervalMinutes,
             reminderStartTime: model.reminderStartTime,
@@ -187,6 +197,8 @@ enum SyncDTOMapper {
 
 struct UserProfileDTO: Codable {
     let id: String
+    /// Mirrors `id` on write; supports legacy `profiles.user_id` column on read.
+    let recordUserId: String
     let displayName: String
     let age: Int
     let weightKg: Double
@@ -200,10 +212,11 @@ struct UserProfileDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
 
-    var userId: String { id }
+    var userId: String { recordUserId.isEmpty ? id : recordUserId }
 
     enum CodingKeys: String, CodingKey {
         case id
+        case recordUserId = "user_id"
         case displayName = "display_name"
         case age
         case weightKg = "weight_kg"
@@ -220,6 +233,7 @@ struct UserProfileDTO: Codable {
 
     init(
         id: String,
+        recordUserId: String? = nil,
         displayName: String,
         age: Int,
         weightKg: Double,
@@ -234,6 +248,7 @@ struct UserProfileDTO: Codable {
         updatedAt: Date
     ) {
         self.id = id
+        self.recordUserId = recordUserId ?? id
         self.displayName = displayName
         self.age = age
         self.weightKg = weightKg
@@ -251,6 +266,7 @@ struct UserProfileDTO: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
+        recordUserId = try container.decodeIfPresent(String.self, forKey: .recordUserId) ?? id
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? ""
         age = try container.decodeIfPresent(Int.self, forKey: .age) ?? 0
         weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg) ?? 0

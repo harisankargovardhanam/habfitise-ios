@@ -7,6 +7,7 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) private var appState
+    @Environment(SyncService.self) private var syncService
     @Environment(ThemeManager.self) private var themeManager
 
     @State private var viewModel = ProfileViewModel()
@@ -23,10 +24,11 @@ struct ProfileView: View {
     @Query private var profiles: [UserProfile]
 
     init(userId: String) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
         _profiles = Query(
             filter: #Predicate<UserProfile> { profile in
-                profile.userId == userId
+                profile.userId == normalizedUserId
             }
         )
     }
@@ -43,11 +45,16 @@ struct ProfileView: View {
                         proSection
                     }
 
+                    developerSection
                     accountSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
+            }
+            .cloudRefreshable(scope: .profile) {
+                viewModel.load(profile: profiles.first, userId: userId)
+                await viewModel.refreshAccountEmail()
             }
             .background(themeManager.colors.background.ignoresSafeArea())
             .navigationTitle("Profile")
@@ -63,7 +70,13 @@ struct ProfileView: View {
             .toolbarColorScheme(themeManager.preferredColorScheme, for: .navigationBar)
         }
         .preferredColorScheme(themeManager.preferredColorScheme)
+        .task {
+            await viewModel.refreshAccountEmail()
+        }
         .onAppear {
+            viewModel.load(profile: profiles.first, userId: userId)
+        }
+        .onChange(of: profiles.first?.updatedAt) { _, _ in
             viewModel.load(profile: profiles.first, userId: userId)
         }
         .sheet(isPresented: $showPaywall) {
@@ -73,21 +86,25 @@ struct ProfileView: View {
         .sheet(isPresented: $showEditProfile) {
             EditProfileSheet(viewModel: viewModel) {
                 viewModel.save(profile: profiles.first, context: modelContext)
+                pushToCloud()
             }
         }
         .sheet(isPresented: $showTargetWeightEdit) {
             TargetWeightEditSheet(viewModel: viewModel) {
                 viewModel.save(profile: profiles.first, context: modelContext)
+                pushToCloud()
             }
         }
         .sheet(isPresented: $showTimelineEdit) {
             TimelineEditSheet(viewModel: viewModel) {
                 viewModel.save(profile: profiles.first, context: modelContext)
+                pushToCloud()
             }
         }
         .sheet(isPresented: $showDaysPerWeekEdit) {
             DaysPerWeekEditSheet(viewModel: viewModel) {
                 viewModel.save(profile: profiles.first, context: modelContext)
+                pushToCloud()
             }
         }
         .sheet(isPresented: $showBodyWeightLog) {
@@ -119,7 +136,7 @@ struct ProfileView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes your profile, workouts, habits, and all local data. This cannot be undone.")
+            Text("This removes your profile, workouts, habits, and tasks from this phone only. Your cloud account and data in Supabase are not deleted.")
         }
     }
 
@@ -137,6 +154,12 @@ struct ProfileView: View {
                 Text(viewModel.displayName.isEmpty ? "Your profile" : viewModel.displayName)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(themeManager.colors.textPrimary)
+
+                if !viewModel.accountEmail.isEmpty {
+                    Text(viewModel.accountEmail)
+                        .font(.system(size: 14))
+                        .foregroundStyle(themeManager.colors.textSecondary)
+                }
 
                 Text(viewModel.goalSubtitle)
                     .font(.system(size: 14))
@@ -231,8 +254,70 @@ struct ProfileView: View {
                 ProfileProUpgradeRow {
                     showPaywall = true
                 }
+
+                rowDivider
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Label("Cloud sync", systemImage: "icloud.fill")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(themeManager.colors.textPrimary)
+                        Spacer()
+                        Text("Pro")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(themeManager.colors.accentGreen)
+                    }
+                    Text("Sync habits, tasks, and workouts across devices.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(themeManager.colors.textSecondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
             }
         }
+    }
+
+    private var developerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ProfileSectionLabel(title: "Testing")
+
+            ProfileDarkCell {
+                Toggle(isOn: debugProBinding) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("VAYA Pro")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(themeManager.colors.textPrimary)
+                        Text("Turn on Pro features for testing")
+                            .font(.system(size: 12))
+                            .foregroundStyle(themeManager.colors.textSecondary)
+                    }
+                }
+                .tint(themeManager.colors.accentGreen)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+    }
+
+    private var debugProBinding: Binding<Bool> {
+        Binding(
+            get: { appState.isPro },
+            set: { enabled in
+                appState.setDebugProEnabled(enabled)
+                appState.refreshWidgets(context: modelContext)
+                if enabled {
+                    Task {
+                        await syncService.sync(
+                            modelContext: modelContext,
+                            userId: userId,
+                            mode: .full,
+                            scope: .all,
+                            force: true
+                        )
+                    }
+                }
+            }
+        )
     }
 
     private var accountSection: some View {
@@ -240,6 +325,23 @@ struct ProfileView: View {
             ProfileSectionLabel(title: "Account")
 
             ProfileDarkCell {
+                if !AppConstants.Backend.useLocalOnly {
+                    HStack {
+                        Label("Email", systemImage: "envelope")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(themeManager.colors.textPrimary)
+                        Spacer()
+                        Text(viewModel.accountEmailLabel)
+                            .font(.system(size: 15))
+                            .foregroundStyle(themeManager.colors.textSecondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+
+                    rowDivider
+                }
+
                 ProfileActionRow(icon: "arrow.right.square", title: "Sign Out") {
                     showSignOutConfirm = true
                 }
@@ -257,6 +359,11 @@ struct ProfileView: View {
         Divider()
             .overlay(Color.white.opacity(0.08))
             .padding(.leading, 16)
+    }
+
+    private func pushToCloud() {
+        guard appState.canUseCloudSync else { return }
+        syncService.schedulePush(modelContext: modelContext, userId: userId)
     }
 }
 

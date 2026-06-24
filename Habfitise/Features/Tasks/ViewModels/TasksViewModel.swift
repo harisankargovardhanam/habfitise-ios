@@ -83,11 +83,16 @@ final class TasksViewModel {
         task.updatedAt = .now
         task.markPendingSync()
         try? context.save()
+        WidgetDataPublisher.refresh(context: context, userId: task.userId)
     }
 
     func deleteTask(_ task: TaskRecord, context: ModelContext) {
+        if task.synced {
+            SyncDeletionQueue.record(table: SyncTable.tasks, id: task.id, userId: task.userId)
+        }
         context.delete(task)
         try? context.save()
+        WidgetDataPublisher.refresh(context: context, userId: task.userId)
         taskPendingDelete = nil
         showDeleteConfirm = false
     }
@@ -96,6 +101,7 @@ final class TasksViewModel {
         task.dueDate = date
         task.markPendingSync()
         try? context.save()
+        WidgetDataPublisher.refresh(context: context, userId: task.userId)
         taskPendingReschedule = nil
         showRescheduleSheet = false
     }
@@ -112,7 +118,7 @@ final class TasksViewModel {
         guard !trimmed.isEmpty else { return }
 
         let task = TaskRecord(
-            userId: userId,
+            userId: userId.lowercased(),
             title: trimmed,
             dueDate: dueDate,
             recurrence: recurrence == .none ? nil : recurrence.rawValue,
@@ -121,6 +127,7 @@ final class TasksViewModel {
         )
         context.insert(task)
         try? context.save()
+        WidgetDataPublisher.refresh(context: context, userId: userId)
     }
 
     func requestDelete(_ task: TaskRecord) {

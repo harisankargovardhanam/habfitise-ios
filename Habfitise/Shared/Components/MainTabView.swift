@@ -10,66 +10,67 @@ struct LiquidGlassTabBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: TabBarLayout.tabSpacing) {
             ForEach(MainTab.allCases) { tab in
                 tabItem(tab)
                     .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, compactBar ? TabBarLayout.tabSpacingCompact : TabBarLayout.tabSpacing)
+        .padding(.horizontal, 6)
         .padding(.vertical, TabBarLayout.capsulePadding)
         .background { glassBackground }
         .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.18), radius: 20, y: 10)
+        .shadow(color: .black.opacity(0.28), radius: 24, y: 12)
         .padding(.horizontal, TabBarLayout.edgeInset)
-    }
-
-    private var compactBar: Bool {
-        MainTab.allCases.count > 4
     }
 
     @ViewBuilder
     private func tabItem(_ tab: MainTab) -> some View {
         let isActive = tabBarState.activeTab == tab
-        let pillWidth = compactBar ? TabBarLayout.activePillWidthCompact : TabBarLayout.activePillWidth
-        let pillHeight = compactBar ? TabBarLayout.activePillHeightCompact : TabBarLayout.activePillHeight
-        let iconPointSize = compactBar ? TabBarLayout.iconSizeCompact : TabBarLayout.iconSize
 
         Button {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
                 tabBarState.selectTab(tab)
             }
         } label: {
-            Image(systemName: tab.systemImage)
-                .font(.system(size: iconPointSize, weight: isActive ? .semibold : .regular))
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(tabIconColor(isActive: isActive))
-                .frame(width: pillWidth, height: pillHeight)
-                .background {
-                    if isActive {
-                        Capsule()
-                            .fill(activePillFill)
-                            .matchedGeometryEffect(id: "tabIndicator", in: tabIndicatorNamespace)
-                    }
+            VStack(spacing: 3) {
+                Image(systemName: isActive ? tab.filledSystemImage : tab.outlineSystemImage)
+                    .font(.system(size: TabBarLayout.iconSize, weight: isActive ? .semibold : .regular))
+                    .symbolRenderingMode(.monochrome)
+
+                Text(tab.shortTitle)
+                    .font(.system(size: TabBarLayout.labelSize, weight: isActive ? .semibold : .medium, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(tabLabelColor(isActive: isActive))
+            .frame(maxWidth: .infinity)
+            .frame(height: TabBarLayout.tabItemHeight)
+            .background {
+                if isActive {
+                    Capsule()
+                        .fill(activePillFill)
+                        .matchedGeometryEffect(id: "tabIndicator", in: tabIndicatorNamespace)
                 }
+            }
         }
-        .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.94))
+        .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.96))
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    private func tabIconColor(isActive: Bool) -> Color {
+    private func tabLabelColor(isActive: Bool) -> Color {
         if usesLightTabChrome {
-            return Color.black.opacity(isActive ? 1 : 0.45)
+            return Color.black.opacity(isActive ? 1 : 0.42)
         }
-        return Color.white.opacity(isActive ? 1 : 0.58)
+        return Color.white.opacity(isActive ? 1 : 0.52)
     }
 
     private var activePillFill: Color {
         if usesLightTabChrome {
-            return Color.black.opacity(0.08)
+            return Color.black.opacity(0.1)
         }
-        return Color.black.opacity(0.44)
+        return Color.black.opacity(0.48)
     }
 
     private var glassBackground: some View {
@@ -77,10 +78,18 @@ struct LiquidGlassTabBar: View {
             .fill(.ultraThinMaterial)
             .overlay {
                 Capsule()
+                    .fill(
+                        usesLightTabChrome
+                            ? Color.white.opacity(0.72)
+                            : Color(hex: "#1C1C1E").opacity(0.82)
+                    )
+            }
+            .overlay {
+                Capsule()
                     .strokeBorder(
                         usesLightTabChrome
-                            ? Color.black.opacity(0.08)
-                            : Color.white.opacity(0.24),
+                            ? Color.black.opacity(0.06)
+                            : Color.white.opacity(0.14),
                         lineWidth: 0.5
                     )
             }
@@ -105,32 +114,29 @@ struct MainTabView: View {
             .onAppear {
                 runMissedWorkoutDetection()
                 rescheduleNotifications()
-                guard !AppConstants.Backend.useLocalOnly else { return }
-                syncService.configure(modelContext: modelContext) {
-                    appState.authenticatedUserId
-                }
-                syncService.startNetworkMonitoring()
-                Task {
-                    await syncService.syncAll(
-                        modelContext: modelContext,
-                        userId: appState.authenticatedUserId
-                    )
-                }
+                consumePendingDeepLink()
+                appState.refreshWidgets(context: modelContext)
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     runMissedWorkoutDetection()
                     rescheduleNotifications()
+                    appState.refreshWidgets(context: modelContext)
                 }
-                guard !AppConstants.Backend.useLocalOnly else { return }
+                guard appState.canUseCloudSync else { return }
                 if newPhase == .active {
                     Task {
-                        await syncService.syncAll(
+                        await syncService.sync(
                             modelContext: modelContext,
-                            userId: appState.authenticatedUserId
+                            userId: appState.authenticatedUserId,
+                            mode: .incremental,
+                            scope: .all
                         )
                     }
                 }
+            }
+            .onChange(of: appState.pendingDeepLinkTab) { _, _ in
+                consumePendingDeepLink()
             }
             .onChange(of: notificationBridge.pendingBuilder?.workoutType) { _, _ in
                 if notificationBridge.pendingBuilder != nil {
@@ -168,6 +174,12 @@ struct MainTabView: View {
                 context: modelContext
             )
         }
+    }
+
+    private func consumePendingDeepLink() {
+        guard let tab = appState.pendingDeepLinkTab else { return }
+        tabBarState.selectTab(tab)
+        appState.clearPendingDeepLinkTab()
     }
 
     @ViewBuilder

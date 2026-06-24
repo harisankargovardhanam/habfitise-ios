@@ -154,6 +154,9 @@ struct HomeContentView: View {
                 showAddTask: $showAddTask,
                 onSync: syncViewModel
             ))
+            .onChange(of: appState.isPro) { _, _ in
+                syncViewModel()
+            }
     }
 
     private func openHabits() {
@@ -182,6 +185,7 @@ struct HomeContentView: View {
                     .habfitiseStaggeredAppear(index: 1)
             }
         }
+        .cloudRefreshable(scope: .home, perform: syncViewModel)
     }
 
     private var homeDashboardCards: some View {
@@ -278,7 +282,11 @@ struct HomeContentView: View {
 
                     VStack(spacing: HabfitiseSpacing.sm) {
                         ForEach(viewModel.habitItems) { item in
-                            BentoHabitRow(item: item)
+                            BentoHomeStatusRow(
+                                title: item.name,
+                                isDone: item.isCompleted,
+                                style: .habit
+                            )
                         }
                     }
                 }
@@ -326,7 +334,11 @@ struct HomeContentView: View {
 
                     VStack(spacing: HabfitiseSpacing.sm) {
                         ForEach(viewModel.taskItems) { task in
-                            BentoTaskListRow(task: task)
+                            BentoHomeStatusRow(
+                                title: task.title,
+                                isDone: task.isComplete,
+                                style: .task
+                            )
                         }
                     }
                 }
@@ -517,6 +529,11 @@ struct HomeContentView: View {
             waterGoal: waterGoals.first,
             context: modelContext
         )
+        publishWidgetSnapshot()
+    }
+
+    private func publishWidgetSnapshot() {
+        appState.refreshWidgets(context: modelContext)
     }
 
     private func openScheduledWorkout() {
@@ -577,106 +594,6 @@ struct HomeContentView: View {
 }
 
 // MARK: - Bento micro-components
-
-private struct BentoHabitRow: View {
-    let item: HomeHabitChipItem
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        HStack(spacing: HabfitiseSpacing.sm) {
-            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(item.isCompleted ? theme.colors.accentGreen : theme.colors.textSecondary)
-
-            Text(item.name)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, HabfitiseSpacing.md)
-        .padding(.vertical, HabfitiseSpacing.sm + 2)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(theme.colors.fieldBackground)
-        )
-    }
-}
-
-private struct BentoTaskListRow: View {
-    let task: HomeTaskItem
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        HStack(spacing: HabfitiseSpacing.sm) {
-            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(task.isComplete ? theme.colors.accentGreen : theme.colors.textSecondary)
-
-            Text(task.title)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, HabfitiseSpacing.md)
-        .padding(.vertical, HabfitiseSpacing.sm + 2)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(theme.colors.fieldBackground)
-        )
-    }
-}
-
-private struct BentoHabitChip: View {
-    let item: HomeHabitChipItem
-    var compact: Bool = false
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        HStack(spacing: 3) {
-            if item.isCompleted {
-                Image(systemName: "checkmark")
-                    .font(.system(size: compact ? 8 : 10, weight: .bold))
-            }
-            Text(item.name)
-                .font(.system(size: compact ? 10 : 12, weight: .semibold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-        }
-        .foregroundStyle(item.isCompleted ? theme.colors.accentGreen : theme.colors.textPrimary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, compact ? 8 : 12)
-        .padding(.vertical, compact ? 5 : 8)
-        .background(
-            Capsule()
-                .fill(item.isCompleted ? theme.colors.accentGreen.opacity(0.12) : theme.colors.fieldBackground)
-        )
-    }
-}
-
-private struct BentoTaskRow: View {
-    let task: HomeTaskItem
-    var compact: Bool = false
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        HStack(spacing: HabfitiseSpacing.sm) {
-            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: compact ? 12 : 14, weight: .semibold))
-                .foregroundStyle(task.isComplete ? theme.colors.accentGreen : theme.colors.textSecondary)
-
-            Text(task.title)
-                .font(.system(size: compact ? 11 : 13, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textPrimary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-        }
-    }
-}
 
 private struct BentoWorkoutChipRow: View {
     let chips: [String]

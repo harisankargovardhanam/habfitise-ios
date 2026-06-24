@@ -136,20 +136,26 @@ final class HabitsViewModel {
         _ habit: Habit,
         userId: String,
         completions: [HabitCompletion],
-        context: ModelContext
+        context: ModelContext,
+        syncService: SyncService
     ) -> Int? {
         guard !isCompletedToday(habitId: habit.id, completions: completions) else { return nil }
 
         HabfitiseHaptics.completion()
 
+        let normalizedUserId = userId.lowercased()
         let completion = HabitCompletion(
             habitId: habit.id,
-            userId: userId,
+            userId: normalizedUserId,
             completedDate: .now,
             synced: false
         )
+        completion.markPendingSync()
         context.insert(completion)
         try? context.save()
+
+        syncService.schedulePush(modelContext: context, userId: normalizedUserId)
+        WidgetDataPublisher.refresh(context: context, userId: normalizedUserId)
 
         Task {
             await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
@@ -165,7 +171,8 @@ final class HabitsViewModel {
     func undoHabitToday(
         _ habit: Habit,
         completions: [HabitCompletion],
-        context: ModelContext
+        context: ModelContext,
+        syncService: SyncService
     ) {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
@@ -180,24 +187,44 @@ final class HabitsViewModel {
         guard !todaysCompletions.isEmpty else { return }
 
         for completion in todaysCompletions {
+            if completion.synced {
+                SyncDeletionQueue.record(
+                    table: SyncTable.habitCompletions,
+                    id: completion.id,
+                    userId: completion.userId
+                )
+            }
             context.delete(completion)
         }
         try? context.save()
+        syncService.schedulePush(modelContext: context, userId: habit.userId.lowercased())
+        WidgetDataPublisher.refresh(context: context, userId: habit.userId)
+
         Task {
             await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    func addWaterLog(amountMl: Int, userId: String, context: ModelContext) {
+    func addWaterLog(
+        amountMl: Int,
+        userId: String,
+        context: ModelContext,
+        syncService: SyncService
+    ) {
+        let normalizedUserId = userId.lowercased()
         let log = WaterLog(
-            userId: userId,
+            userId: normalizedUserId,
             amountMl: amountMl,
             source: "habits_cup",
             synced: false
         )
+        log.markPendingSync()
         context.insert(log)
         try? context.save()
+
+        syncService.schedulePush(modelContext: context, userId: normalizedUserId)
+        WidgetDataPublisher.refresh(context: context, userId: normalizedUserId)
 
         withAnimation(.spring(response: 0.5, dampingFraction: 0.78)) {
             waterTodayML += amountMl
@@ -208,11 +235,17 @@ final class HabitsViewModel {
         }
     }
 
-    func addWater(at cupIndex: Int, userId: String, context: ModelContext, cupCount: Int = waterCupCount) {
+    func addWater(
+        at cupIndex: Int,
+        userId: String,
+        context: ModelContext,
+        syncService: SyncService,
+        cupCount: Int = waterCupCount
+    ) {
         guard cupIndex == filledWaterCups(for: cupCount), cupIndex < cupCount else { return }
 
         animatingCupIndex = cupIndex
-        addWaterLog(amountMl: Self.waterCupVolumeML, userId: userId, context: context)
+        addWaterLog(amountMl: Self.waterCupVolumeML, userId: userId, context: context, syncService: syncService)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             self.animatingCupIndex = nil
@@ -239,16 +272,32 @@ final class HabitsViewModel {
         showDeleteConfirm = true
     }
 
-    func deleteHabit(_ habit: Habit, context: ModelContext) {
+    func deleteHabit(_ habit: Habit, context: ModelContext, syncService: SyncService) {
         let habitIdConst = habit.id
         let completionDescriptor = FetchDescriptor<HabitCompletion>(
             predicate: #Predicate { $0.habitId == habitIdConst }
         )
         let completions = (try? context.fetch(completionDescriptor)) ?? []
-        completions.forEach { context.delete($0) }
+        for completion in completions {
+            if completion.synced {
+                SyncDeletionQueue.record(
+                    table: SyncTable.habitCompletions,
+                    id: completion.id,
+                    userId: completion.userId
+                )
+            }
+            context.delete(completion)
+        }
+
+        if habit.synced {
+            SyncDeletionQueue.record(table: SyncTable.habits, id: habit.id, userId: habit.userId)
+        }
 
         context.delete(habit)
         try? context.save()
+
+        syncService.schedulePush(modelContext: context, userId: habit.userId.lowercased())
+        WidgetDataPublisher.refresh(context: context, userId: habit.userId)
 
         Task {
             await NotificationService.shared.cancelHabitReminder(habitId: habitIdConst)
@@ -279,6 +328,7 @@ final class HabitsViewModel {
         )
         context.insert(habit)
         try? context.save()
+        WidgetDataPublisher.refresh(context: context, userId: userId)
         Task {
             await NotificationService.shared.scheduleHabitReminder(habit: habit, context: context)
         }

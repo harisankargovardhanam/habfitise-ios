@@ -59,6 +59,14 @@ extension View {
         modifier(HabfitiseNavigationBarModifier())
     }
 
+    /// Pull-to-refresh: scoped Supabase sync, then optionally reload local view state.
+    func cloudRefreshable(
+        scope: SyncScope,
+        perform onComplete: (@MainActor () async -> Void)? = nil
+    ) -> some View {
+        modifier(CloudRefreshModifier(scope: scope, onComplete: onComplete))
+    }
+
     /// Navigation chrome when pushed from Home — system back + trailing action.
     func habfitisePushedScreen<Trailing: View>(
         title: String,
@@ -76,6 +84,30 @@ extension View {
     }
 }
 
+private struct CloudRefreshModifier: ViewModifier {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AppState.self) private var appState
+    @Environment(SyncService.self) private var syncService
+
+    let scope: SyncScope
+    var onComplete: (@MainActor () async -> Void)?
+
+    func body(content: Content) -> some View {
+        content.refreshable {
+            guard appState.canUseCloudSync else {
+                appState.requireUpgrade(for: .cloudSync)
+                return
+            }
+            await syncService.refresh(
+                modelContext: modelContext,
+                userId: appState.authenticatedUserId,
+                scope: scope
+            )
+            await onComplete?()
+        }
+    }
+}
+
 private struct ScrollOffsetReporterModifier: ViewModifier {
     @Environment(TabBarState.self) private var tabBarState
 
@@ -90,6 +122,7 @@ private struct ScrollOffsetReporterModifier: ViewModifier {
 
 private struct HabfitiseTabScreenModifier: ViewModifier {
     @Environment(ThemeManager.self) private var theme
+    @Environment(AppState.self) private var appState
     @Environment(TabBarState.self) private var tabBarState
     let title: String?
     let immersiveHeader: Bool
@@ -117,7 +150,7 @@ private struct HabfitiseTabScreenModifier: ViewModifier {
             .navigationTitle(title ?? "")
             .navigationBarTitleDisplayMode(title == nil ? .inline : .large)
             .toolbar {
-                if !AppConstants.Backend.useLocalOnly {
+                if appState.canUseCloudSync {
                     ToolbarItem(placement: .topBarTrailing) {
                         SyncStatusDot()
                     }

@@ -16,7 +16,7 @@ final class HomeViewModel {
     private(set) var workoutCard = HomeWorkoutCardModel.quickStart
 
     var greeting: String {
-        Self.makeGreeting(name: displayName)
+        Self.makeGreeting()
     }
 
     var workoutTitle: String {
@@ -140,6 +140,7 @@ final class HomeViewModel {
         withAnimation(.spring(response: 0.2, dampingFraction: 0.65)) {
             waterTodayML += amountML
         }
+        WidgetDataPublisher.refresh(context: context, userId: userId)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         Task {
             await NotificationService.shared.rescheduleWaterReminders(userId: userId, context: context)
@@ -300,16 +301,12 @@ final class HomeViewModel {
         return Calendar.current.isDateInToday(scheduled)
     }
 
-    private static func makeGreeting(name: String) -> String {
+    private static func makeGreeting() -> String {
         let hour = Calendar.current.component(.hour, from: .now)
-        let timeGreeting: String
         switch hour {
-        case 5..<12: timeGreeting = "Good morning"
-        case 12..<17: timeGreeting = "Good afternoon"
-        default: timeGreeting = "Good evening"
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        default: return "Good evening"
         }
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return timeGreeting }
-        return "\(timeGreeting), \(trimmed)"
     }
 }

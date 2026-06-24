@@ -59,16 +59,17 @@ struct WorkoutHistoryView: View {
     @State private var showFilterBar = true
 
     init(userId: String) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
         _sessions = Query(
             filter: #Predicate<WorkoutSession> { session in
-                session.userId == userId && session.completedAt != nil
+                session.userId == normalizedUserId && session.completedAt != nil
             },
             sort: [SortDescriptor(\.startedAt, order: .reverse)]
         )
         _exerciseSets = Query(
             filter: #Predicate<ExerciseSet> { set in
-                set.userId == userId
+                set.userId == normalizedUserId
             }
         )
     }

@@ -7,42 +7,34 @@ enum TabBarLayout {
     static let scrollBreathingRoom: CGFloat = 16
 
     /// How far the bar slides off-screen when hidden.
-    static let hideOffset: CGFloat = 110
+    static let hideOffset: CGFloat = 120
 
-    /// Gap between the bar and the bottom safe area (floats lower on screen).
-    static let floatingBottomInset: CGFloat = 2
+    /// Gap between the bar and the bottom safe area.
+    static let floatingBottomInset: CGFloat = 6
 
-    /// Home-indicator clearance below the pill (overlay does not auto-inset scroll content).
-    static let homeIndicatorReserve: CGFloat = 34
+    /// Home-indicator clearance below the pill.
+    static let homeIndicatorReserve: CGFloat = 28
 
     /// Full scroll inset so the last row clears the floating tab bar at rest.
     static var tabBarScrollInset: CGFloat {
         barHeight + floatingBottomInset + homeIndicatorReserve + scrollBreathingRoom
     }
 
-    /// Legacy alias used by tab scroll views.
     static var floatingClearance: CGFloat { tabBarScrollInset }
 
     static var barHeight: CGFloat {
-        itemSize + capsulePadding * 2
+        tabItemHeight + capsulePadding * 2
     }
 
-    static let edgeInset: CGFloat = 24
-    static let capsulePadding: CGFloat = 10
-    static let tabSpacing: CGFloat = 4
-    static let tabSpacingCompact: CGFloat = 2
+    /// Horizontal inset — bar floats wide like reference tab bars.
+    static let edgeInset: CGFloat = 16
+    static let capsulePadding: CGFloat = 8
+    static let tabSpacing: CGFloat = 2
 
-    static let iconSize: CGFloat = 22
-    static let iconSizeCompact: CGFloat = 20
-
-    /// Active selection pill — wide squircle like reference tab bars.
-    static let activePillWidth: CGFloat = 58
-    static let activePillHeight: CGFloat = 40
-    static let activePillWidthCompact: CGFloat = 52
-    static let activePillHeightCompact: CGFloat = 36
-
-    static let itemSize: CGFloat = 58
-    static let itemSizeCompact: CGFloat = 52
+    static let iconSize: CGFloat = 20
+    static let labelSize: CGFloat = 10
+    static let tabItemHeight: CGFloat = 46
+    static let activePillHeight: CGFloat = 46
 }
 
 enum MainTab: String, CaseIterable, Identifiable, Hashable {
@@ -65,12 +57,36 @@ enum MainTab: String, CaseIterable, Identifiable, Hashable {
     }
 
     var systemImage: String {
+        filledSystemImage
+    }
+
+    var filledSystemImage: String {
         switch self {
         case .home: "house.fill"
         case .habits: "leaf.fill"
         case .tasks: "checklist"
         case .workout: "dumbbell.fill"
         case .progress: "chart.bar.fill"
+        }
+    }
+
+    var outlineSystemImage: String {
+        switch self {
+        case .home: "house"
+        case .habits: "leaf"
+        case .tasks: "checklist"
+        case .workout: "dumbbell"
+        case .progress: "chart.bar"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .home: "Home"
+        case .habits: "Habits"
+        case .tasks: "Tasks"
+        case .workout: "Workout"
+        case .progress: "Progress"
         }
     }
 }
@@ -89,15 +105,7 @@ final class TabBarState {
     /// Full-width pill with labels when true; compact icon-only pill when false.
     var showsLabels: Bool { isVisible }
 
-    var labelOpacity: Double {
-        guard scrollOffset > 20 else { return 1 }
-        let progress = min((scrollOffset - 20) / 36, 1)
-        return 1 - progress
-    }
-
-    var pillMaxWidth: CGFloat? {
-        isVisible ? nil : 220
-    }
+    var labelOpacity: Double { 1 }
 
     func selectTab(_ tab: MainTab) {
         guard activeTab != tab else { return }

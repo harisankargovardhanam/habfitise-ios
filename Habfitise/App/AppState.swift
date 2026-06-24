@@ -10,15 +10,51 @@ final class AppState {
     var isPro = false
     var isRestoringFromCloud = false
     var pendingNavigation: PendingNavigation = .none
+    var pendingDeepLinkTab: MainTab?
     var pendingWorkoutBuilder: PendingWorkoutBuilder?
 
+    /// Cloud sync + cross-device restore — Pro only.
+    var canUseCloudSync: Bool {
+        !AppConstants.Backend.useLocalOnly && isPro
+    }
+
+    func applyDebugProOverride() {
+        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.debugForcePro) {
+            isPro = true
+        }
+    }
+
+    func setDebugProEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: AppConstants.UserDefaultsKeys.debugForcePro)
+        isPro = enabled
+    }
+
+    func openDeepLinkTab(_ tab: MainTab) {
+        pendingDeepLinkTab = tab
+    }
+
+    func clearPendingDeepLinkTab() {
+        pendingDeepLinkTab = nil
+    }
+
+    func refreshWidgets(context: ModelContext) {
+        guard let userId = authenticatedUserId else { return }
+        WidgetDataPublisher.refresh(context: context, userId: userId)
+    }
+
     func setAuthenticated(userId: String, context: ModelContext) {
-        authState = .authenticated(userId: userId)
+        let normalizedUserId = Self.normalizeUserId(userId)
+        let wasAlreadyAuthenticated = authenticatedUserId == normalizedUserId
+        authState = .authenticated(userId: normalizedUserId)
 
         if AppConstants.Backend.useLocalOnly {
-            refreshOnboardingState(userId: userId, context: context)
-        } else {
-            isRestoringFromCloud = true
+            refreshOnboardingState(userId: normalizedUserId, context: context)
+        } else if !wasAlreadyAuthenticated {
+            if isPro {
+                isRestoringFromCloud = true
+            } else {
+                refreshOnboardingState(userId: normalizedUserId, context: context)
+            }
         }
     }
 
@@ -51,24 +87,48 @@ final class AppState {
         isRestoringFromCloud = false
         isPro = false
         pendingNavigation = .auth
+        WidgetDataPublisher.publishEmpty()
     }
 
     private func refreshOnboardingState(userId: String, context: ModelContext) {
-        needsOnboarding = !Self.hasCompletedOnboarding(userId: userId, context: context)
+        let normalizedUserId = Self.normalizeUserId(userId)
+        needsOnboarding = !Self.hasCompletedOnboarding(userId: normalizedUserId, context: context)
         pendingNavigation = needsOnboarding ? .onboarding : .home
     }
 
+    private static func normalizeUserId(_ userId: String) -> String {
+        userId.lowercased()
+    }
+
     private static func hasCompletedOnboarding(userId: String, context: ModelContext) -> Bool {
-        if UserDefaults.standard.bool(
-            forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
-        ) {
+        let normalizedUserId = normalizeUserId(userId)
+
+        for keyUserId in Set([normalizedUserId, userId]) {
+            if UserDefaults.standard.bool(
+                forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: keyUserId)
+            ) {
+                if keyUserId != normalizedUserId {
+                    UserDefaults.standard.set(
+                        true,
+                        forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: normalizedUserId)
+                    )
+                }
+                return true
+            }
+        }
+
+        if SwiftDataStack.shared.userProfileExists(userId: normalizedUserId, context: context) {
+            UserDefaults.standard.set(
+                true,
+                forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: normalizedUserId)
+            )
             return true
         }
 
-        if SwiftDataStack.shared.userProfileExists(userId: userId, context: context) {
+        if SwiftDataStack.shared.hasReturningUserData(userId: normalizedUserId, context: context) {
             UserDefaults.standard.set(
                 true,
-                forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: userId)
+                forKey: AppConstants.UserDefaultsKeys.onboardingCompleted(for: normalizedUserId)
             )
             return true
         }

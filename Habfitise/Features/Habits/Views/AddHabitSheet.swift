@@ -3,6 +3,7 @@ import SwiftData
 
 struct AddHabitSheet: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(SyncService.self) private var syncService
     let userId: String
     let onSave: () -> Void
 
@@ -181,8 +182,9 @@ struct AddHabitSheet: View {
             frequency = keys.isEmpty ? "daily" : keys.joined(separator: ",")
         }
 
+        let normalizedUserId = userId.lowercased()
         let habit = Habit(
-            userId: userId,
+            userId: normalizedUserId,
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             frequency: frequency,
             reminderTime: reminderTime,
@@ -192,9 +194,13 @@ struct AddHabitSheet: View {
         modelContext.insert(habit)
         try? modelContext.save()
 
+        syncService.schedulePush(modelContext: modelContext, userId: normalizedUserId)
+
         Task {
             await NotificationService.shared.scheduleHabitReminder(habit: habit, context: modelContext)
         }
+
+        WidgetDataPublisher.refresh(context: modelContext, userId: normalizedUserId)
 
         onSave()
         dismiss()

@@ -38,41 +38,42 @@ struct ProgressContentView: View {
     @Query private var profiles: [UserProfile]
 
     init(userId: String) {
-        self.userId = userId
+        let normalizedUserId = userId.lowercased()
+        self.userId = normalizedUserId
 
         _sessions = Query(
-            filter: #Predicate<WorkoutSession> { $0.userId == userId },
+            filter: #Predicate<WorkoutSession> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.startedAt, order: .reverse)]
         )
         _sets = Query(
-            filter: #Predicate<ExerciseSet> { $0.userId == userId },
+            filter: #Predicate<ExerciseSet> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.completedAt, order: .reverse)]
         )
         _habits = Query(
-            filter: #Predicate<Habit> { $0.userId == userId && $0.isActive },
+            filter: #Predicate<Habit> { $0.userId == normalizedUserId && $0.isActive },
             sort: [SortDescriptor(\.createdAt)]
         )
         _completions = Query(
-            filter: #Predicate<HabitCompletion> { $0.userId == userId },
+            filter: #Predicate<HabitCompletion> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.completedDate, order: .reverse)]
         )
         _tasks = Query(
-            filter: #Predicate<TaskRecord> { $0.userId == userId },
+            filter: #Predicate<TaskRecord> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         _waterLogs = Query(
-            filter: #Predicate<WaterLog> { $0.userId == userId },
+            filter: #Predicate<WaterLog> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.loggedAt, order: .reverse)]
         )
         _waterGoals = Query(
-            filter: #Predicate<WaterGoal> { $0.userId == userId }
+            filter: #Predicate<WaterGoal> { $0.userId == normalizedUserId }
         )
         _bodyWeightEntries = Query(
-            filter: #Predicate<BodyWeightEntry> { $0.userId == userId },
+            filter: #Predicate<BodyWeightEntry> { $0.userId == normalizedUserId },
             sort: [SortDescriptor(\.loggedAt)]
         )
         _profiles = Query(
-            filter: #Predicate<UserProfile> { $0.userId == userId }
+            filter: #Predicate<UserProfile> { $0.userId == normalizedUserId }
         )
     }
 
@@ -105,6 +106,7 @@ struct ProgressContentView: View {
             .scrollIndicators(.hidden)
             .scrollContentBackground(.hidden)
             .coordinateSpace(name: HabfitiseScrollCoordinateSpace.name)
+            .cloudRefreshable(scope: .progress, perform: syncViewModel)
         }
         .background(theme.colors.background.ignoresSafeArea())
         .habfitiseTabScreen(immersiveHeader: true)

@@ -3,6 +3,7 @@ import SwiftData
 
 struct AddTaskSheet: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(SyncService.self) private var syncService
     let userId: String
     let habits: [Habit]
     let onSave: () -> Void
@@ -185,8 +186,9 @@ struct AddTaskSheet: View {
             dueDate = pickedDate
         }
 
+        let normalizedUserId = userId.lowercased()
         let task = TaskRecord(
-            userId: userId,
+            userId: normalizedUserId,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             dueDate: dueDate,
             recurrence: recurrence == .none ? nil : recurrence.rawValue,
@@ -195,6 +197,9 @@ struct AddTaskSheet: View {
         )
         modelContext.insert(task)
         try? modelContext.save()
+
+        syncService.schedulePush(modelContext: modelContext, userId: normalizedUserId)
+        WidgetDataPublisher.refresh(context: modelContext, userId: normalizedUserId)
 
         onSave()
         dismiss()

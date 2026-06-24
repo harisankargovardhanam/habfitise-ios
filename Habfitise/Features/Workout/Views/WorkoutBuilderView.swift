@@ -401,6 +401,10 @@ struct WorkoutBuilderView: View {
                                 onSave: {
                                     if let weight = Double(startWeightText) {
                                         viewModel.logStartWeight(weight, context: modelContext)
+                                        syncService.schedulePush(
+                                            modelContext: modelContext,
+                                            userId: appState.authenticatedUserId
+                                        )
                                     }
                                 },
                                 onDismiss: { viewModel.dismissWeightLogPrompt() }

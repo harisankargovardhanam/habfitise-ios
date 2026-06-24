@@ -24,6 +24,13 @@ struct HabfitiseApp: App {
                 .preferredColorScheme(themeManager.preferredColorScheme)
                 .modelContainer(modelContainer)
                 .onOpenURL { url in
+                    guard url.scheme == "habfitise" else { return }
+
+                    if let host = url.host, let tab = MainTab(rawValue: host) {
+                        appState.openDeepLinkTab(tab)
+                        return
+                    }
+
                     guard !AppConstants.Backend.useLocalOnly else { return }
                     Task {
                         do {
@@ -40,6 +47,7 @@ struct HabfitiseApp: App {
                     }
                 }
                 .task {
+                    appState.applyDebugProOverride()
                     await bootstrapAuthState()
                 }
                 .task {
@@ -52,14 +60,31 @@ struct HabfitiseApp: App {
                     let context = SwiftDataStack.shared.mainContext
                     syncService.configure(modelContext: context) {
                         appState.authenticatedUserId
+                    } cloudSyncEnabled: {
+                        appState.canUseCloudSync
                     }
                     syncService.startNetworkMonitoring()
 
                     let showRestoreUI = appState.isRestoringFromCloud
-                    await syncService.syncAll(
+
+                    guard appState.canUseCloudSync else {
+                        if showRestoreUI {
+                            appState.finishCloudRestore(context: context)
+                        }
+                        await NotificationService.shared.rescheduleAllReminders(
+                            userId: userId,
+                            context: context
+                        )
+                        return
+                    }
+
+                    await syncService.sync(
                         modelContext: context,
                         userId: userId,
-                        showProgress: showRestoreUI
+                        mode: .full,
+                        scope: .all,
+                        showProgress: showRestoreUI,
+                        force: true
                     )
 
                     if showRestoreUI {
@@ -103,7 +128,9 @@ struct HabfitiseApp: App {
         for await state in SupabaseManager.shared.authStateStream {
             switch state {
             case .loading:
-                appState.authState = .loading
+                if appState.authenticatedUserId == nil {
+                    appState.authState = .loading
+                }
 
             case .authenticated(let userId):
                 appState.setAuthenticated(
@@ -123,17 +150,25 @@ struct HabfitiseApp: App {
 
     @MainActor
     private func bootstrapServices() async {
+        appState.applyDebugProOverride()
+
         if PurchaseService.shared.isConfigured {
             if PurchaseService.shared.customerInfo == nil {
                 if let info = try? await PurchaseService.shared.refreshCustomerInfo() {
-                    appState.isPro = info.entitlements[AppConstants.RevenueCat.proEntitlementID]?.isActive == true
+                    if !UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.debugForcePro) {
+                        appState.isPro = info.entitlements[AppConstants.RevenueCat.proEntitlementID]?.isActive == true
+                    }
                 }
-            } else {
+            } else if !UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.debugForcePro) {
                 appState.isPro = PurchaseService.shared.isProActive
             }
         }
 
-        // Local notifications only. Remote push (FCM) deferred — see Config/DEFERRED.md
+        if let userId = appState.authenticatedUserId {
+            appState.refreshWidgets(context: SwiftDataStack.shared.mainContext)
+        }
+
+        // Local notifications only.
         _ = try? await NotificationService.shared.requestAuthorization()
         let context = SwiftDataStack.shared.mainContext
         await NotificationService.shared.pruneStaleWaterReminders(
