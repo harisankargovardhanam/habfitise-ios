@@ -1,37 +1,5 @@
 import SwiftUI
 
-// MARK: - Portion picker
-
-struct NutritionPortionPicker: View {
-    @Binding var selection: NutritionPortionSize
-
-    @Environment(ThemeManager.self) private var theme
-
-    var body: some View {
-        HStack(spacing: HabfitiseSpacing.sm) {
-            ForEach(NutritionPortionSize.allCases) { size in
-                let isSelected = selection == size
-                Button {
-                    selection = size
-                } label: {
-                    Text(size.title)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isSelected ? theme.colors.textOnBackground : theme.colors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: HabfitiseRadius.md, style: .continuous)
-                                .fill(isSelected ? Color(hex: "#FF9500") : theme.colors.chipBackground)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Portion size")
-    }
-}
-
 // MARK: - Macro range hero
 
 struct NutritionMacroRangeView: View {
@@ -89,6 +57,46 @@ struct NutritionMacroRangeView: View {
     }
 }
 
+// MARK: - Source banner
+
+struct NutritionSourceBanner: View {
+    let source: NutritionEstimateSource
+    let label: String
+
+    @Environment(ThemeManager.self) private var theme
+
+    var body: some View {
+        if source.showsAICaution {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#FF9500"))
+                Text(source == .mixed
+                     ? "Some items matched our food database; AI estimated the rest."
+                     : "Not in our food database — using AI to estimate. Treat as a rough guess.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(HabfitiseSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(hex: "#FF9500").opacity(0.12))
+            )
+        } else {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.colors.accentGreen)
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+            }
+        }
+    }
+}
+
 // MARK: - Estimate result card
 
 struct NutritionEstimateResultCard: View {
@@ -106,17 +114,42 @@ struct NutritionEstimateResultCard: View {
         }
     }
 
+    private var sourceIcon: String {
+        switch estimate.source {
+        case .catalog: "checkmark.seal.fill"
+        case .usda: "leaf.fill"
+        case .mixed: "checkmark.seal.fill"
+        case .ai: "sparkles"
+        }
+    }
+
+    private var sourceTint: Color {
+        switch estimate.source {
+        case .catalog, .usda: theme.colors.accentGreen
+        case .mixed: Color(hex: "#FF9500")
+        case .ai: Color(hex: "#FF9500")
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: HabfitiseSpacing.lg) {
+            NutritionSourceBanner(source: estimate.source, label: estimate.sourceLabel)
+
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(estimate.title)
+                    Text(estimate.matchedName.isEmpty ? estimate.title : estimate.matchedName)
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.colors.textPrimary)
 
-                    Label(confidenceLabel, systemImage: "sparkles")
+                    if !estimate.servingDescription.isEmpty {
+                        Text(estimate.servingDescription)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.colors.textSecondary)
+                    }
+
+                    Label(estimate.source.showsAICaution ? confidenceLabel : estimate.sourceLabel, systemImage: sourceIcon)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color(hex: "#FF9500"))
+                        .foregroundStyle(sourceTint)
                 }
 
                 Spacer(minLength: 0)

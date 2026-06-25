@@ -7,7 +7,6 @@ import UIKit
 @MainActor
 final class NutritionViewModel {
     var inputMode: FoodLogInputMode = .foodName
-    var portionSize: NutritionPortionSize = .regular
     var foodName = ""
     var ingredientRows: [NutritionIngredientDraft] = [
         NutritionIngredientDraft(name: "", amount: 1, unit: NutritionIngredientUnit.cup.label)
@@ -20,8 +19,21 @@ final class NutritionViewModel {
     private static var estimateCache: [String: NutritionEstimateDraft] = [:]
 
     private(set) var daySummary = NutritionDaySummary.empty
+    private var userTimezone: String?
+    private var userLocale: String?
+
+    var showsMilkTeaDefaultHint: Bool {
+        let text = foodName.lowercased()
+        guard inputMode == .foodName, text.contains("tea") || text.contains("chai") else { return false }
+        guard !text.contains("black") && !text.contains("without milk") && !text.contains("no milk") else {
+            return false
+        }
+        return Self.isSouthAsiaRegion(timezone: userTimezone, locale: userLocale)
+    }
 
     func refresh(logs: [FoodLog], profile: UserProfile?, activeEnergyKcal: Int = 0) {
+        userTimezone = profile?.timezone
+        userLocale = Locale.current.identifier
         daySummary = NutritionCalculator.daySummary(
             logs: logs,
             profile: profile,
@@ -31,11 +43,18 @@ final class NutritionViewModel {
 
     func resetDraft() {
         foodName = ""
-        portionSize = .regular
         ingredientRows = [NutritionIngredientDraft(name: "", amount: 1, unit: NutritionIngredientUnit.cup.label)]
         estimateError = nil
         pendingEstimate = nil
         isEstimating = false
+        Self.estimateCache.removeAll()
+    }
+
+    func clearPendingLookup() {
+        let cacheKey = Self.cacheKey(for: buildRequest())
+        Self.estimateCache.removeValue(forKey: cacheKey)
+        pendingEstimate = nil
+        estimateError = nil
     }
 
     func addIngredientRow() {
@@ -47,8 +66,8 @@ final class NutritionViewModel {
         ingredientRows.removeAll { $0.id == id }
     }
 
-    func estimateWithAI(appState: AppState) async {
-        guard appState.isPro else {
+    func resolveNutrition(appState: AppState) async {
+        if inputMode == .ingredients && !appState.isPro {
             appState.requireUpgrade(for: .aiNutrition)
             return
         }
@@ -61,40 +80,52 @@ final class NutritionViewModel {
         isEstimating = true
         defer { isEstimating = false }
 
-        do {
-            let request = buildRequest()
-            let cacheKey = Self.cacheKey(for: request)
-            if let cached = Self.estimateCache[cacheKey] {
-                pendingEstimate = cached
+        let request = buildRequest()
+        let cacheKey = Self.cacheKey(for: request)
+        let region = Self.regionBucket(timezone: userTimezone, locale: userLocale)
+
+        if inputMode == .foodName {
+            if let meal = FoodCatalogLocal.matchMeal(query: foodName, region: region) {
+                let draft = Self.draftFromLocalMeal(meal, title: displayTitle)
+                Self.estimateCache[cacheKey] = draft
+                pendingEstimate = draft
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 return
             }
 
+            if let local = FoodCatalogLocal.match(query: foodName, region: region) {
+                let draft = Self.draftFromLocalCatalog(local, title: displayTitle)
+                Self.estimateCache[cacheKey] = draft
+                pendingEstimate = draft
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                return
+            }
+        }
+
+        if let cached = Self.estimateCache[cacheKey] {
+            pendingEstimate = cached
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            return
+        }
+
+        do {
             let response = try await EdgeFunctionService.shared.estimateNutrition(request)
-            let draft = NutritionEstimateDraft(
-                title: displayTitle,
-                calories: .init(
-                    low: response.caloriesKcal.low,
-                    mid: response.caloriesKcal.mid,
-                    high: response.caloriesKcal.high
-                ),
-                protein: .init(
-                    low: response.proteinG.low,
-                    mid: response.proteinG.mid,
-                    high: response.proteinG.high
-                ),
-                confidence: response.confidence,
-                assumptions: response.assumptions
-            )
+            let draft = Self.draft(from: response, title: displayTitle)
             Self.estimateCache[cacheKey] = draft
             pendingEstimate = draft
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch EdgeFunctionServiceError.proRequired {
+            estimateError = "Not in our food database yet. VAYA Pro unlocks AI estimates."
             appState.requireUpgrade(for: .aiNutrition)
         } catch {
             estimateError = error.localizedDescription
             UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
+    }
+
+    /// Backward-compatible entry point for existing call sites.
+    func estimateWithAI(appState: AppState) async {
+        await resolveNutrition(appState: appState)
     }
 
     func saveEstimate(userId: String, context: ModelContext) {
@@ -112,7 +143,9 @@ final class NutritionViewModel {
             proteinHigh: estimate.protein.high,
             confidence: estimate.confidence,
             assumptionsJSON: encodeAssumptions(estimate.assumptions),
-            ingredientsJSON: inputMode == .ingredients ? encodeIngredients() : nil
+            ingredientsJSON: inputMode == .ingredients ? encodeIngredients() : nil,
+            estimateSource: estimate.source.rawValue,
+            catalogFoodId: estimate.catalogFoodId
         )
         context.insert(log)
         try? context.save()
@@ -168,7 +201,9 @@ final class NutritionViewModel {
                 mode: FoodLogInputMode.foodName.apiMode,
                 text: foodName.trimmingCharacters(in: .whitespacesAndNewlines),
                 ingredients: nil,
-                portionHint: portionSize.apiHint
+                portionHint: nil,
+                timezone: userTimezone ?? TimeZone.current.identifier,
+                locale: userLocale ?? Locale.current.identifier
             )
         case .ingredients:
             let items = ingredientRows.compactMap { row -> NutritionEstimateRequest.NutritionIngredient? in
@@ -180,7 +215,9 @@ final class NutritionViewModel {
                 mode: FoodLogInputMode.ingredients.apiMode,
                 text: nil,
                 ingredients: items,
-                portionHint: nil
+                portionHint: nil,
+                timezone: userTimezone ?? TimeZone.current.identifier,
+                locale: userLocale ?? Locale.current.identifier
             )
         }
     }
@@ -212,16 +249,117 @@ final class NutritionViewModel {
             let parts = ingredients
                 .map { "\($0.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines))|\($0.amount)|\($0.unit.lowercased())" }
                 .sorted()
-            return "ingredients:" + parts.joined(separator: ";")
+            return "ingredients:" + parts.joined(separator: ";") + "|\(Self.regionBucket(timezone: request.timezone, locale: request.locale))"
         }
 
         let text = (request.text ?? "")
             .lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-        let portion = (request.portionHint ?? "")
-            .lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return "food:\(text)|\(portion)"
+        let region = Self.regionBucket(
+            timezone: request.timezone,
+            locale: request.locale
+        )
+        return "food:v3:\(text)|\(region)"
+    }
+
+    private static func isSouthAsiaRegion(timezone: String?, locale: String?) -> Bool {
+        regionBucket(timezone: timezone, locale: locale) == "south_asia"
+    }
+
+    private static func regionBucket(timezone: String?, locale: String?) -> String {
+        let southAsiaTimezones: Set<String> = [
+            "Asia/Kolkata", "Asia/Colombo", "Asia/Karachi", "Asia/Dhaka",
+            "Asia/Kathmandu", "Asia/Thimphu", "Indian/Maldives"
+        ]
+        if let timezone, southAsiaTimezones.contains(timezone) {
+            return "south_asia"
+        }
+
+        let localeValue = (locale ?? Locale.current.identifier).lowercased()
+        let southAsiaCodes = ["in", "pk", "bd", "lk", "np", "mv"]
+        if southAsiaCodes.contains(where: { code in
+            localeValue == code ||
+            localeValue.hasPrefix("\(code)_") ||
+            localeValue.hasSuffix("_\(code)")
+        }) {
+            return "south_asia"
+        }
+
+        return "default"
+    }
+
+    private static func draft(from response: NutritionEstimateResponse, title: String) -> NutritionEstimateDraft {
+        NutritionEstimateDraft(
+            title: title,
+            calories: .init(
+                low: response.caloriesKcal.low,
+                mid: response.caloriesKcal.mid,
+                high: response.caloriesKcal.high
+            ),
+            protein: .init(
+                low: response.proteinG.low,
+                mid: response.proteinG.mid,
+                high: response.proteinG.high
+            ),
+            confidence: response.confidence,
+            assumptions: response.assumptions,
+            source: response.estimateSource,
+            sourceLabel: response.sourceLabel,
+            matchedName: response.matchedName,
+            servingDescription: response.servingDescription,
+            catalogFoodId: response.catalogFoodId
+        )
+    }
+
+    private static func draftFromLocalCatalog(_ entry: FoodCatalogEntry, title: String) -> NutritionEstimateDraft {
+        NutritionEstimateDraft(
+            title: title,
+            calories: .init(low: entry.caloriesLow, mid: entry.caloriesMid, high: entry.caloriesHigh),
+            protein: .init(low: entry.proteinLow, mid: entry.proteinMid, high: entry.proteinHigh),
+            confidence: "high",
+            assumptions: [
+                "Matched: \(entry.name)",
+                "Serving: \(entry.servingDescription)",
+                "On-device food database",
+            ],
+            source: .catalog,
+            sourceLabel: "Verified food database",
+            matchedName: entry.name,
+            servingDescription: entry.servingDescription,
+            catalogFoodId: nil
+        )
+    }
+
+    private static func draftFromLocalMeal(_ entries: [FoodCatalogEntry], title: String) -> NutritionEstimateDraft {
+        let calories = NutritionMacroRange(
+            low: entries.reduce(0) { $0 + $1.caloriesLow },
+            mid: entries.reduce(0) { $0 + $1.caloriesMid },
+            high: entries.reduce(0) { $0 + $1.caloriesHigh }
+        )
+        let protein = NutritionMacroRange(
+            low: entries.reduce(0) { $0 + $1.proteinLow },
+            mid: entries.reduce(0) { $0 + $1.proteinMid },
+            high: entries.reduce(0) { $0 + $1.proteinHigh }
+        )
+
+        let matchedName = entries.map(\.name).joined(separator: " + ")
+        let servingDescription = entries.map(\.servingDescription).joined(separator: "; ")
+        let assumptions = ["Meal: \(title)"] + entries.map {
+            "Matched: \($0.name) — \($0.servingDescription)"
+        } + ["On-device food database"]
+
+        return NutritionEstimateDraft(
+            title: title,
+            calories: calories,
+            protein: protein,
+            confidence: "high",
+            assumptions: assumptions,
+            source: .catalog,
+            sourceLabel: "Verified food database",
+            matchedName: matchedName,
+            servingDescription: servingDescription,
+            catalogFoodId: nil
+        )
     }
 }

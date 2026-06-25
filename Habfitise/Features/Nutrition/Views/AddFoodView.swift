@@ -25,7 +25,6 @@ struct AddFoodView: View {
 
                 if viewModel.inputMode == .foodName {
                     foodNameSection
-                    portionSection
                 } else {
                     ingredientsSection
                 }
@@ -77,6 +76,14 @@ struct AddFoodView: View {
             viewModel.pendingEstimate = nil
             viewModel.estimateError = nil
         }
+        .onChange(of: viewModel.foodName) { _, _ in
+            viewModel.pendingEstimate = nil
+            viewModel.estimateError = nil
+        }
+        .onChange(of: viewModel.ingredientRows.map(\.name)) { _, _ in
+            viewModel.pendingEstimate = nil
+            viewModel.estimateError = nil
+        }
     }
 
     private var foodNameSection: some View {
@@ -85,7 +92,7 @@ struct AddFoodView: View {
                 .font(HabfitiseTypography.caption)
                 .foregroundStyle(theme.colors.textSecondary)
 
-            TextField("e.g. Chicken biryani with raita", text: $viewModel.foodName, axis: .vertical)
+            TextField("e.g. 1 cup tea with sugar, 2 eggs, chicken biryani", text: $viewModel.foodName, axis: .vertical)
                 .focused($focusedField, equals: .foodName)
                 .lineLimit(2...4)
                 .font(.system(size: 17, weight: .medium, design: .rounded))
@@ -98,27 +105,16 @@ struct AddFoodView: View {
                 .submitLabel(.done)
                 .onSubmit { dismissKeyboard() }
 
-            Text("AI returns a calorie and protein range — not an exact count.")
+            Text("We check our food database first. Include an amount when you can (1 cup, 2 slices).")
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(theme.colors.textTertiary)
-        }
-    }
 
-    private var portionSection: some View {
-        VStack(alignment: .leading, spacing: HabfitiseSpacing.sm) {
-            Text("Portion size")
-                .font(HabfitiseTypography.caption)
-                .foregroundStyle(theme.colors.textSecondary)
-
-            NutritionPortionPicker(selection: $viewModel.portionSize)
-                .onChange(of: viewModel.portionSize) { _, _ in
-                    viewModel.pendingEstimate = nil
-                    viewModel.estimateError = nil
-                }
-
-            Text(viewModel.portionSize.subtitle)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(theme.colors.textTertiary)
+            if viewModel.showsMilkTeaDefaultHint {
+                Label("Tea is estimated as milk tea (chai). Say \"black tea\" if without milk.", systemImage: "info.circle")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -161,8 +157,8 @@ struct AddFoodView: View {
                         dismiss()
                     }
 
-                    Button("Estimate again") {
-                        viewModel.pendingEstimate = nil
+                    Button("Look up again") {
+                        viewModel.clearPendingLookup()
                     }
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(theme.colors.textSecondary)
@@ -178,17 +174,17 @@ struct AddFoodView: View {
     private var estimateButton: some View {
         Button {
             dismissKeyboard()
-            Task { await viewModel.estimateWithAI(appState: appState) }
+            Task { await viewModel.resolveNutrition(appState: appState) }
         } label: {
             HStack(spacing: HabfitiseSpacing.sm) {
                 if viewModel.isEstimating {
                     ProgressView().tint(.white)
                 } else {
-                    Image(systemName: "sparkles")
+                    Image(systemName: viewModel.inputMode == .ingredients ? "sparkles" : "magnifyingglass")
                         .font(.system(size: 16, weight: .semibold))
                 }
 
-                Text(viewModel.isEstimating ? "Estimating…" : "Estimate with AI")
+                Text(viewModel.isEstimating ? "Looking up…" : lookupButtonTitle)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(.white)
@@ -207,6 +203,13 @@ struct AddFoodView: View {
         }
         .buttonStyle(HabfitiseScalePressButtonStyle(scale: 0.98))
         .disabled(viewModel.isEstimating)
+    }
+
+    private var lookupButtonTitle: String {
+        switch viewModel.inputMode {
+        case .foodName: "Look up food"
+        case .ingredients: "Estimate with AI"
+        }
     }
 
     private func progress(for value: Int, target: Int) -> Double {

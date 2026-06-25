@@ -323,6 +323,8 @@ final class FoodLog: SyncTrackable {
     var confidence: String
     var assumptionsJSON: String
     var ingredientsJSON: String?
+    var estimateSource: String = NutritionEstimateSource.ai.rawValue
+    var catalogFoodId: String?
     var synced: Bool
     var updatedAt: Date
 
@@ -341,6 +343,8 @@ final class FoodLog: SyncTrackable {
         confidence: String,
         assumptionsJSON: String = "[]",
         ingredientsJSON: String? = nil,
+        estimateSource: String = NutritionEstimateSource.ai.rawValue,
+        catalogFoodId: String? = nil,
         synced: Bool = false,
         updatedAt: Date = .now
     ) {
@@ -358,6 +362,8 @@ final class FoodLog: SyncTrackable {
         self.confidence = confidence
         self.assumptionsJSON = assumptionsJSON
         self.ingredientsJSON = ingredientsJSON
+        self.estimateSource = estimateSource
+        self.catalogFoodId = catalogFoodId
         self.synced = synced
         self.updatedAt = updatedAt
     }

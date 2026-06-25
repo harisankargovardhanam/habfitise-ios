@@ -1,39 +1,23 @@
 import Foundation
 
-enum NutritionPortionSize: String, CaseIterable, Identifiable {
-    case small
-    case regular
-    case large
+enum NutritionEstimateSource: String, Codable, Equatable {
+    case catalog
+    case usda
+    case mixed
+    case ai
 
-    var id: String { rawValue }
-
-    var title: String {
+    var displayLabel: String {
         switch self {
-        case .small: "Small"
-        case .regular: "Regular"
-        case .large: "Large"
+        case .catalog: "Food database"
+        case .usda: "USDA FoodData"
+        case .mixed: "Food database + AI"
+        case .ai: "AI estimate"
         }
     }
 
-    var subtitle: String {
-        switch self {
-        case .small: "~half plate"
-        case .regular: "~1 plate"
-        case .large: "~1.5× plate"
-        }
-    }
+    var isAI: Bool { self == .ai }
 
-    /// Sent to the nutrition edge function as `portionHint`.
-    var apiHint: String {
-        switch self {
-        case .small:
-            "Small portion (~175g cooked, or half a restaurant plate)"
-        case .regular:
-            "Regular portion (~350g cooked, or 1 standard restaurant plate)"
-        case .large:
-            "Large portion (~525g cooked, or 1.5× restaurant plate)"
-        }
-    }
+    var showsAICaution: Bool { self == .ai || self == .mixed }
 }
 
 enum FoodLogInputMode: String, CaseIterable, Identifiable {
@@ -101,6 +85,11 @@ struct NutritionEstimateDraft: Equatable {
     let protein: NutritionMacroRange
     let confidence: String
     let assumptions: [String]
+    let source: NutritionEstimateSource
+    let sourceLabel: String
+    let matchedName: String
+    let servingDescription: String
+    let catalogFoodId: String?
 }
 
 struct NutritionDaySummary: Equatable {

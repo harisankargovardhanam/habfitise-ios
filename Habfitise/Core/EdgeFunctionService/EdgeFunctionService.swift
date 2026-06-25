@@ -52,6 +52,8 @@ struct NutritionEstimateRequest: Encodable {
     let text: String?
     let ingredients: [NutritionIngredient]?
     let portionHint: String?
+    let timezone: String?
+    let locale: String?
 
     struct NutritionIngredient: Encodable {
         let name: String
@@ -61,6 +63,11 @@ struct NutritionEstimateRequest: Encodable {
 }
 
 struct NutritionEstimateResponse: Decodable {
+    let source: String
+    let sourceLabel: String
+    let matchedName: String
+    let servingDescription: String
+    let catalogFoodId: String?
     let caloriesKcal: NutritionRange
     let proteinG: NutritionRange
     let confidence: String
@@ -71,6 +78,10 @@ struct NutritionEstimateResponse: Decodable {
         let low: Int
         let mid: Int
         let high: Int
+    }
+
+    var estimateSource: NutritionEstimateSource {
+        NutritionEstimateSource(rawValue: source) ?? .ai
     }
 }
 
